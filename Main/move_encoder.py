@@ -2,35 +2,80 @@ import chess
 
 
 PROMOTION_OFFSET = 4096
-PROMOTION_CLASSES = 4
-TOTAL_CLASSES = PROMOTION_OFFSET + PROMOTION_CLASSES * 64 * 64
+PROMOTION_PIECE_TYPES = 4
+PROMOTION_PAIR_COUNT = 44
+TOTAL_CLASSES = PROMOTION_OFFSET + PROMOTION_PAIR_COUNT * PROMOTION_PIECE_TYPES
+
+PROMOTION_PAIRS = [
+    (chess.parse_square("a7"), chess.parse_square("a8")),
+    (chess.parse_square("b7"), chess.parse_square("b8")),
+    (chess.parse_square("c7"), chess.parse_square("c8")),
+    (chess.parse_square("d7"), chess.parse_square("d8")),
+    (chess.parse_square("e7"), chess.parse_square("e8")),
+    (chess.parse_square("f7"), chess.parse_square("f8")),
+    (chess.parse_square("g7"), chess.parse_square("g8")),
+    (chess.parse_square("h7"), chess.parse_square("h8")),
+    (chess.parse_square("a2"), chess.parse_square("a1")),
+    (chess.parse_square("b2"), chess.parse_square("b1")),
+    (chess.parse_square("c2"), chess.parse_square("c1")),
+    (chess.parse_square("d2"), chess.parse_square("d1")),
+    (chess.parse_square("e2"), chess.parse_square("e1")),
+    (chess.parse_square("f2"), chess.parse_square("f1")),
+    (chess.parse_square("g2"), chess.parse_square("g1")),
+    (chess.parse_square("h2"), chess.parse_square("h1")),
+    (chess.parse_square("a7"), chess.parse_square("b8")),
+    (chess.parse_square("b7"), chess.parse_square("a8")),
+    (chess.parse_square("b7"), chess.parse_square("c8")),
+    (chess.parse_square("c7"), chess.parse_square("b8")),
+    (chess.parse_square("c7"), chess.parse_square("d8")),
+    (chess.parse_square("d7"), chess.parse_square("c8")),
+    (chess.parse_square("d7"), chess.parse_square("e8")),
+    (chess.parse_square("e7"), chess.parse_square("d8")),
+    (chess.parse_square("e7"), chess.parse_square("f8")),
+    (chess.parse_square("f7"), chess.parse_square("e8")),
+    (chess.parse_square("f7"), chess.parse_square("g8")),
+    (chess.parse_square("g7"), chess.parse_square("f8")),
+    (chess.parse_square("g7"), chess.parse_square("h8")),
+    (chess.parse_square("h7"), chess.parse_square("g8")),
+    (chess.parse_square("a2"), chess.parse_square("b1")),
+    (chess.parse_square("b2"), chess.parse_square("a1")),
+    (chess.parse_square("b2"), chess.parse_square("c1")),
+    (chess.parse_square("c2"), chess.parse_square("b1")),
+    (chess.parse_square("c2"), chess.parse_square("d1")),
+    (chess.parse_square("d2"), chess.parse_square("c1")),
+    (chess.parse_square("d2"), chess.parse_square("e1")),
+    (chess.parse_square("e2"), chess.parse_square("d1")),
+    (chess.parse_square("e2"), chess.parse_square("f1")),
+    (chess.parse_square("f2"), chess.parse_square("e1")),
+    (chess.parse_square("f2"), chess.parse_square("g1")),
+    (chess.parse_square("g2"), chess.parse_square("f1")),
+    (chess.parse_square("g2"), chess.parse_square("h1")),
+    (chess.parse_square("h2"), chess.parse_square("g1")),
+]
+PROMOTION_PAIR_TO_INDEX = {pair: index for index, pair in enumerate(PROMOTION_PAIRS)}
+PROMOTION_ORDER = {
+    chess.QUEEN: 0,
+    chess.ROOK: 1,
+    chess.BISHOP: 2,
+    chess.KNIGHT: 3,
+}
 
 
 def encode_move(move):
-    """Encode a python-chess Move into an integer.
-
-    Non-promotion moves keep the existing 4096-class mapping:
-    from_square * 64 + to_square.
-
-    Promotion moves use the same base for source/destination and then add a
-    promotion-specific offset so that moves with the same source and destination
-    but different promotion pieces receive distinct class IDs.
-    """
+    """Encode a python-chess Move into an integer."""
     if not isinstance(move, chess.Move):
         raise TypeError("move must be a python-chess Move")
 
     if move.promotion is None:
         return move.from_square * 64 + move.to_square
 
-    promotion_order = {
-        chess.QUEEN: 0,
-        chess.ROOK: 1,
-        chess.BISHOP: 2,
-        chess.KNIGHT: 3,
-    }
-    promo_index = promotion_order[move.promotion]
-    base = move.from_square * 64 + move.to_square
-    return PROMOTION_OFFSET + promo_index * 4096 + base
+    pair = (move.from_square, move.to_square)
+    if pair not in PROMOTION_PAIR_TO_INDEX:
+        raise ValueError(f"Unsupported promotion move: {move.uci()}")
+
+    pair_index = PROMOTION_PAIR_TO_INDEX[pair]
+    promo_index = PROMOTION_ORDER[move.promotion]
+    return PROMOTION_OFFSET + pair_index * PROMOTION_PIECE_TYPES + promo_index
 
 
 def decode_move(encoded_value, board=None):
@@ -49,17 +94,13 @@ def decode_move(encoded_value, board=None):
             return move
         raise ValueError(f"Encoded move {encoded_value} is not legal in the provided board")
 
-    promo_index = (encoded_value - PROMOTION_OFFSET) // 4096
-    base = (encoded_value - PROMOTION_OFFSET) % 4096
-    from_square = base // 64
-    to_square = base % 64
-    promotion_order = {
-        0: chess.QUEEN,
-        1: chess.ROOK,
-        2: chess.BISHOP,
-        3: chess.KNIGHT,
-    }
-    promotion_piece = promotion_order[promo_index]
+    pair_index = (encoded_value - PROMOTION_OFFSET) // PROMOTION_PIECE_TYPES
+    promo_index = (encoded_value - PROMOTION_OFFSET) % PROMOTION_PIECE_TYPES
+    if pair_index >= len(PROMOTION_PAIRS):
+        raise ValueError(f"Encoded promotion move {encoded_value} is out of range")
+
+    promotion_piece = {value: piece for piece, value in PROMOTION_ORDER.items()}[promo_index]
+    from_square, to_square = PROMOTION_PAIRS[pair_index]
     move = chess.Move(from_square, to_square, promotion=promotion_piece)
     if move in board.legal_moves:
         return move
@@ -77,7 +118,13 @@ if __name__ == "__main__":
         "e7e8b",
         "e7e8n",
         "e2e1q",
+        "e2e1r",
+        "e2e1b",
         "e2e1n",
+        "d7c8q",
+        "d7c8r",
+        "d7c8b",
+        "d7c8n",
     ]
     boards = {
         "e2e4": chess.Board(),
@@ -89,7 +136,13 @@ if __name__ == "__main__":
         "e7e8b": chess.Board("7k/4P3/7K/8/8/8/8/8 w - - 0 1"),
         "e7e8n": chess.Board("7k/4P3/7K/8/8/8/8/8 w - - 0 1"),
         "e2e1q": chess.Board("7k/8/8/8/8/8/4p3/7K b - - 0 1"),
+        "e2e1r": chess.Board("7k/8/8/8/8/8/4p3/7K b - - 0 1"),
+        "e2e1b": chess.Board("7k/8/8/8/8/8/4p3/7K b - - 0 1"),
         "e2e1n": chess.Board("7k/8/8/8/8/8/4p3/7K b - - 0 1"),
+        "d7c8q": chess.Board("7k/3P4/7K/8/8/8/8/8 w - - 0 1"),
+        "d7c8r": chess.Board("7k/3P4/7K/8/8/8/8/8 w - - 0 1"),
+        "d7c8b": chess.Board("7k/3P4/7K/8/8/8/8/8 w - - 0 1"),
+        "d7c8n": chess.Board("7k/3P4/7K/8/8/8/8/8 w - - 0 1"),
     }
 
     print(f"Total classes: {TOTAL_CLASSES}")
