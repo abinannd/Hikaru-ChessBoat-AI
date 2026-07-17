@@ -3,11 +3,11 @@ import chess
 
 
 def encode_board(board):
-    """Encode a python-chess Board into a (17, 8, 8) numpy array of piece, side-to-move, and castling-right planes."""
+    """Encode a python-chess Board into a (18, 8, 8) numpy array of piece, side-to-move, castling-right, and en-passant planes."""
     if not isinstance(board, chess.Board):
         raise TypeError("board must be a python-chess Board")
 
-    planes = np.zeros((17, 8, 8), dtype=np.uint8)
+    planes = np.zeros((18, 8, 8), dtype=np.uint8)
     piece_order = [
         1,
         2,
@@ -45,6 +45,12 @@ def encode_board(board):
             planes[plane_index] = 1
         else:
             planes[plane_index] = 0
+
+    ep_square = board.ep_square
+    if ep_square is not None:
+        row = chess.square_rank(ep_square)
+        col = chess.square_file(ep_square)
+        planes[17, row, col] = 1
 
     return planes
 
@@ -90,6 +96,16 @@ if __name__ == "__main__":
     print(f"No-castling position shape: {encoded_no_castling.shape}")
     for index, label in enumerate(castling_labels, start=13):
         print(f"{label} plane unique values (no castling): {np.unique(encoded_no_castling[index])}")
+
+    en_passant_plane = encoded[17]
+    print(f"En-passant plane active squares: {int(en_passant_plane.sum())}")
+
+    board_after_ep = chess.Board()
+    board_after_ep.push_san("e4")
+    encoded_after_ep = encode_board(board_after_ep)
+    ep_square = chess.SquareSet(chess.BB_ALL)
+    print(f"En-passant plane active squares after two-square move: {int(encoded_after_ep[17].sum())}")
+    print(f"En-passant target square after e2e4: {chess.square_name(board_after_ep.ep_square)}")
 
     legal_moves = list(board.legal_moves)
     if legal_moves:
