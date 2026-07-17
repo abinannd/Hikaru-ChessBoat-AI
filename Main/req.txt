@@ -1,1 +1,2 @@
 model should play both white and black
+python-chess
