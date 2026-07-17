@@ -34,6 +34,15 @@ def count_games_by_ply_threshold(pgn_path=None):
     return accepted, rejected
 
 
+def calculate_split_counts(total_games):
+    """Return counts for an 80/10/10 split while keeping the total exact."""
+    train_count = int(total_games * 0.8)
+    remaining = total_games - train_count
+    val_count = remaining // 2
+    test_count = remaining - val_count
+    return train_count, val_count, test_count
+
+
 def main():
     try:
         accepted, rejected = count_games_by_ply_threshold()
@@ -43,6 +52,12 @@ def main():
 
     print(f"Accepted games (20+ plies): {accepted}")
     print(f"Rejected games (<20 plies): {rejected}")
+
+    train_count, val_count, test_count = calculate_split_counts(accepted)
+    print(f"Training set (80%): {train_count}")
+    print(f"Validation set (10%): {val_count}")
+    print(f"Test set (10%): {test_count}")
+    print(f"Total assigned: {train_count + val_count + test_count}")
     return 0
 
 
