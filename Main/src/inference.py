@@ -324,6 +324,69 @@ class ChessInference:
             is_legal=True
         )
 
+    def predict_best_move(self, fen: str) -> MovePrediction:
+        """Executes the complete move prediction pipeline for a given FEN string:
+        1. Loads the FEN.
+        2. Encodes the board.
+        3. Runs neural network inference.
+        4. Generates logits.
+        5. Generates all legal moves.
+        6. Scores every legal move.
+        7. Selects the highest-scoring legal move.
+        8. Returns a MovePrediction object.
+        
+        Measures performance of each step.
+        """
+        import time
+        
+        t_start = time.perf_counter()
+        
+        # 1. Load FEN
+        t0 = time.perf_counter()
+        self.load_board(fen)
+        t_load = (time.perf_counter() - t0) * 1000  # milliseconds
+        
+        # 2. Encode board
+        t0 = time.perf_counter()
+        self.encode_current_board()
+        t_encode = (time.perf_counter() - t0) * 1000  # milliseconds
+        
+        # 3. NN inference (forward pass & logits generation)
+        t0 = time.perf_counter()
+        self.predict_logits()
+        t_inference = (time.perf_counter() - t0) * 1000  # milliseconds
+        
+        # 4. Legal Move scoring & selection
+        t0 = time.perf_counter()
+        prediction = self.get_best_legal_move()
+        t_eval = (time.perf_counter() - t0) * 1000  # milliseconds
+        
+        t_total = (time.perf_counter() - t_start) * 1000  # milliseconds
+        
+        # Console Output
+        print("=====================================")
+        print("AI Prediction")
+        print("=====================================")
+        print(f"FEN: {fen}")
+        print(f"Side to move: {'White' if self.board.turn == chess.WHITE else 'Black'}")
+        print(f"Number of legal moves: {len(list(self.board.legal_moves)) if self.board else 0}")
+        print(f"Chosen move: {prediction.uci if prediction.uci else 'None'}")
+        print(f"Class ID: {prediction.class_id if prediction.class_id is not None else 'None'}")
+        print(f"Logit: {prediction.logit if prediction.logit is not None else 'None'}")
+        print(f"Legal: {prediction.is_legal}")
+        print(f"Inference device: {self.device}")
+        print(f"Inference time (milliseconds): {t_inference:.2f} ms")
+        print("-" * 37)
+        print("Performance Metrics:")
+        print(f"  Board loading time:         {t_load:.2f} ms")
+        print(f"  Encoding time:              {t_encode:.2f} ms")
+        print(f"  Inference time:             {t_inference:.2f} ms")
+        print(f"  Legal move evaluation time: {t_eval:.2f} ms")
+        print(f"  Total prediction time:      {t_total:.2f} ms")
+        print("=====================================")
+        
+        return prediction
+
 if __name__ == "__main__":
     try:
         inference = ChessInference()
@@ -338,7 +401,7 @@ if __name__ == "__main__":
             "Checkmate Position": "7k/6Q1/6K1/8/8/8/8/8 b - - 0 1"
         }
         
-        # Run validation, encoding, inference, decoding, and filtering tests
+        # Run validation, encoding, inference, decoding, filtering, and unified pipeline tests
         for name, fen in test_positions.items():
             print(f"Testing {name}:")
             print(f"FEN: {fen}")
@@ -406,11 +469,33 @@ if __name__ == "__main__":
                     assert isinstance(best_pred.logit, float)
                     print(f"[OK] Best legal move selected: {best_pred.uci}")
                 print("[OK] Legal move filtering successful")
+                
+                # Step 7 Pipeline Verification
+                print("Running Step 7 unified pipeline...")
+                pipeline_pred = inference.predict_best_move(fen)
+                assert isinstance(pipeline_pred, MovePrediction)
+                if name == "Checkmate Position":
+                    assert pipeline_pred.move is None
+                    assert pipeline_pred.is_legal is False
+                else:
+                    assert pipeline_pred.move is not None
+                    assert pipeline_pred.is_legal is True
+                    assert pipeline_pred.move == best_pred.move
+                print("[OK] Step 7 pipeline run successful and verified")
                 print("-" * 40)
             except Exception as e:
                 print(f"[FAILED] Failed testing {name}: {e}\n")
                 sys.exit(1)
                 
+        # Run invalid FEN test explicitly to satisfy requirements
+        print("Testing Invalid FEN handling:")
+        try:
+            inference.predict_best_move("invalid fen string here")
+            print("[FAILED] Expected ValueError for invalid FEN, but none was raised.")
+            sys.exit(1)
+        except ValueError as e:
+            print(f"[OK] Invalid FEN correctly raised exception: {e}")
+            
         print("Verification Suite completed successfully.")
         
     except Exception as e:

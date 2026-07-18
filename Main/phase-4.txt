@@ -1,212 +1,171 @@
-Phase 4 – Step 6: Legal Move Filtering
+Phase 4 – Step 8: Human vs AI Command-Line Gameplay
 
 Objective:
-Convert the neural network's raw predictions into a single legal chess move by evaluating every legal move using the network's output scores.
+Create a standalone CLI application that allows a human to play chess against the trained AI using the existing inference engine.
 
 IMPORTANT:
-Implement ONLY Step 6.
+Implement ONLY Step 8.
 
-Do NOT implement gameplay, CLI, evaluation, Stockfish integration, or GUI.
-
-Reuse all existing modules.
-Do NOT rewrite board_encoder.py or move_encoder.py.
-
-----------------------------------------------------
-Requirements
-----------------------------------------------------
-
-1. Modify:
-
-Main/src/inference.py
-
-2. Add a method:
-
-get_best_legal_move()
-
-3. Preconditions:
-
-- A board has already been loaded.
-- The board has already been encoded.
-- The network has already produced logits.
-- The move decoder already exists.
-
-If any prerequisite is missing, return a clear error.
+Do NOT modify the neural network.
+Do NOT retrain.
+Do NOT change board encoding or move encoding logic.
 
 ----------------------------------------------------
-Legal Move Generation
+Files
 ----------------------------------------------------
 
-Generate all legal moves using:
+Create:
 
-board.legal_moves
+Main/src/play_cli.py
 
-Store them in a list.
+Reuse:
 
-Print:
-
-Number of legal moves found.
-
-----------------------------------------------------
-Move Scoring
-----------------------------------------------------
-
-For EVERY legal move:
-
-1. Encode the move using the existing move_encoder.py.
-
-2. Obtain its class index.
-
-3. Read the corresponding logit directly from the model output.
-
-Example:
-
-score = logits[class_index]
-
-Do NOT run the network again.
-
-Use the already computed logits.
+- ChessInference
+- MovePrediction
+- python-chess
 
 ----------------------------------------------------
-Move Selection
+Game Flow
 ----------------------------------------------------
 
-Compare the scores of every legal move.
+1. Start from the standard chess initial position.
 
-Select ONLY the legal move with the highest logit.
+2. Display the board using python-chess.
 
-Return:
+3. Ask the user whether they want to play:
 
-- chess.Move
-- UCI string
-- class index
-- raw logit score
+White
+or
+Black
+
+4. Initialize a chess.Board().
 
 ----------------------------------------------------
-Verification Output
+Human Turn
 ----------------------------------------------------
 
-Print:
+Prompt:
 
-Board FEN
+Enter your move (UCI):
 
-Number of legal moves
+Examples:
 
-Best legal move
+e2e4
+g1f3
+e7e8q
 
-Class ID
+Validate:
 
-Logit score
+- UCI syntax
+- Move legality
 
-Top 10 legal moves ranked by score
+If invalid:
+
+Explain the error.
+
+Ask again.
+
+Do NOT crash.
+
+----------------------------------------------------
+AI Turn
+----------------------------------------------------
+
+Call:
+
+predict_best_move(board.fen())
+
+Receive a MovePrediction.
+
+If move is None:
+
+End the game.
+
+Otherwise:
+
+Display:
+
+AI chooses: <move>
+
+Push the move onto the board.
+
+----------------------------------------------------
+Board Display
+----------------------------------------------------
+
+After every move print:
+
+Current board
+
+FEN
+
+Side to move
+
+Move number
+
+Game status
+
+----------------------------------------------------
+Game Over
+----------------------------------------------------
+
+Detect:
+
+Checkmate
+
+Stalemate
+
+Insufficient material
+
+Fifty-move rule
+
+Threefold repetition
+
+Print the correct result and terminate cleanly.
+
+----------------------------------------------------
+Move History
+----------------------------------------------------
+
+Maintain a move history.
+
+At game end print:
+
+1. e2e4
+1... e7e5
+2. g1f3
+...
 
 ----------------------------------------------------
 Testing
 ----------------------------------------------------
 
-Verify using all five positions:
+Verify:
 
-1. Initial Position
+Human as White
 
-2. Midgame
+Human as Black
 
-3. Endgame
+Invalid move input
 
-4. Promotion Position
+Illegal move input
 
-5. Checkmate Position
+Checkmate
 
-----------------------------------------------------
-Expected Behaviour
-----------------------------------------------------
+Stalemate
 
-Initial Position
-
-Return a legal opening move.
-
-Examples:
-
-e2e4
-
-d2d4
-
-g1f3
-
-etc.
+Game termination
 
 ----------------------------------------------------
-
-Midgame
-
-Return a legal move.
-
+Constraints
 ----------------------------------------------------
 
-Endgame
+Reuse the existing inference engine.
 
-Return a legal move.
+Do NOT duplicate prediction logic.
 
-----------------------------------------------------
+Do NOT modify board state outside normal chess moves.
 
-Promotion Position
+Keep play_cli.py independent of the AI internals.
 
-If promotion is the highest-scoring legal move,
-
-return the correctly promoted UCI move.
-
-----------------------------------------------------
-
-Checkmate Position
-
-No legal moves exist.
-
-Return:
-
-None
-
-Print:
-
-"Game Over: Checkmate"
-
-Do NOT crash.
-
-----------------------------------------------------
-Verification Report
-----------------------------------------------------
-
-For every position report:
-
-✓ Legal moves generated
-
-✓ Every legal move encoded
-
-✓ Scores extracted
-
-✓ Best legal move selected
-
-✓ Returned move is legal
-
-For the checkmate position:
-
-✓ Zero legal moves detected
-
-✓ Returned None
-
-✓ Game Over handled correctly
-
-----------------------------------------------------
-Important Constraints
-----------------------------------------------------
-
-- Do NOT use the top-10 decoded predictions from Step 5 to choose the move.
-
-- Score ALL legal moves.
-
-- Reuse the logits already computed.
-
-- Never perform another forward pass.
-
-- Never choose an illegal move.
-
-- Do NOT implement gameplay yet.
-
-Only implement legal move filtering.
+Future GUI or web interfaces should be able to reuse the same ChessInference API.
