@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from dataclasses import dataclass
 import torch
 import chess
 
@@ -9,6 +10,15 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from Main.chess_model import ChessMoveCNN
+
+@dataclass
+class MovePrediction:
+    """A structured representation of a move prediction output from the model."""
+    move: chess.Move | None
+    uci: str | None
+    class_id: int | None
+    logit: float | None
+    is_legal: bool
 
 class ChessInference:
     """Class to handle model loading, board representation, encoding, and inference for the chess model."""
@@ -23,6 +33,8 @@ class ChessInference:
             self.checkpoint_path = Path(checkpoint_path)
             
         self.board = None
+        self.current_tensor = None
+        self.logits = None
             
         # Reconstruct and load model
         self.model = self._load_model()
@@ -94,6 +106,8 @@ class ChessInference:
                 raise ValueError(f"FEN represents an illegal chess position: {error_str}")
                 
             self.board = board
+            self.current_tensor = None
+            self.logits = None
         except ValueError as e:
             raise ValueError(f"Invalid FEN string: {e}")
 
@@ -153,6 +167,7 @@ class ChessInference:
         
         # 4. Move the tensor to the model's device
         board_tensor = board_tensor.to(self.device)
+        self.current_tensor = board_tensor
         
         # 5. Print verification information
         print(f"Original encoded shape: {encoded_np.shape}")
@@ -164,10 +179,155 @@ class ChessInference:
         
         return board_tensor
 
+    def predict_logits(self) -> torch.Tensor:
+        """Runs the encoded board tensor through the trained CNN inside a torch.no_grad() block.
+        
+        Stores the raw output logits internally in self.logits.
+        Returns the output logits of shape (1, 4272).
+        """
+        if self.board is None:
+            raise ValueError("No board loaded. Call load_board() first.")
+        if self.current_tensor is None:
+            raise ValueError("Board has not been encoded yet. Call encode_current_board() first.")
+            
+        with torch.no_grad():
+            self.logits = self.model(self.current_tensor)
+            
+        # Print verification information
+        print(f"Input tensor shape: {tuple(self.current_tensor.shape)}")
+        print(f"Output tensor shape: {tuple(self.logits.shape)}")
+        print(f"Output dtype: {self.logits.dtype}")
+        print(f"Device: {self.logits.device}")
+        print(f"Number of output classes: {self.logits.shape[1]}")
+        print(f"Minimum logit value: {float(self.logits.min()):.4f}")
+        print(f"Maximum logit value: {float(self.logits.max()):.4f}")
+        
+        # Compute and print top-10 predicted class indices and raw logit values
+        top_logits, top_indices = torch.topk(self.logits, k=10, dim=1)
+        print("Top-10 predicted class indices and raw logit values:")
+        for rank, (idx, logit) in enumerate(zip(top_indices[0].tolist(), top_logits[0].tolist()), 1):
+            print(f"  Rank {rank:2d}: Class {idx:4d} | Logit: {logit:.6f}")
+            
+        return self.logits
+
+    def decode_predictions(self, top_k: int = 10) -> list[MovePrediction]:
+        """Obtains the top-k predicted class indices from the logits and decodes them into MovePrediction objects.
+        
+        Reuses the existing move_encoder.decode_move but bypasses position legality checks.
+        """
+        if self.logits is None:
+            raise ValueError("No logits found. Run predict_logits() first.")
+            
+        from Main.move_encoder import decode_move
+        
+        # Bypasses the legality checks inside decode_move by providing a duck-typed board
+        class MockBoard:
+            @property
+            def legal_moves(self):
+                class AllLegal:
+                    def __contains__(self, item):
+                        return True
+                return AllLegal()
+                
+        mock_board = MockBoard()
+        
+        top_logits, top_indices = torch.topk(self.logits, k=top_k, dim=1)
+        
+        decoded_results = []
+        for rank, (idx, logit) in enumerate(zip(top_indices[0].tolist(), top_logits[0].tolist()), 1):
+            move = decode_move(idx, board=mock_board)
+            move_str = move.uci()
+            is_legal = (self.board is not None and move in self.board.legal_moves)
+            
+            prediction = MovePrediction(
+                move=move,
+                uci=move_str,
+                class_id=idx,
+                logit=logit,
+                is_legal=is_legal
+            )
+            decoded_results.append(prediction)
+            
+            # Print in the format required by phase-4.txt
+            print(f"Rank {rank}")
+            print(f"Class ID: {idx}")
+            print(f"Logit: {logit:.4f}")
+            print(f"Move: {move_str}")
+            print()
+            
+        return decoded_results
+
+    def get_best_legal_move(self) -> MovePrediction:
+        """Scores all legal moves in the current position based on the pre-computed logits,
+        and selects the move with the highest logit score.
+        
+        Returns:
+            A MovePrediction object representing the best legal move, or a MovePrediction
+            with None fields and is_legal=False if no legal moves exist.
+        """
+        if self.board is None:
+            raise ValueError("No board loaded. Call load_board() first.")
+        if self.logits is None:
+            raise ValueError("No logits found. Run predict_logits() first.")
+            
+        from Main.move_encoder import encode_move
+        
+        # 1. Legal Move Generation
+        legal_moves = list(self.board.legal_moves)
+        print(f"Board FEN: {self.board.fen()}")
+        print(f"Number of legal moves: {len(legal_moves)}")
+        
+        if not legal_moves:
+            if self.board.is_checkmate():
+                print("Game Over: Checkmate")
+            else:
+                print("Game Over: Stalemate/Draw")
+            return MovePrediction(move=None, uci=None, class_id=None, logit=None, is_legal=False)
+            
+        # 2. Move Scoring
+        scored_moves = []
+        for move in legal_moves:
+            try:
+                class_idx = encode_move(move)
+                # Read the corresponding logit directly from the model output
+                logit_score = float(self.logits[0, class_idx].item())
+                scored_moves.append((move, class_idx, logit_score))
+            except Exception as e:
+                # Fallback / handling just in case of encoding issues
+                print(f"Warning: Failed to encode legal move {move.uci()}: {e}")
+                
+        if not scored_moves:
+            raise RuntimeError("None of the legal moves could be encoded.")
+            
+        # Sort moves by logit score descending
+        scored_moves.sort(key=lambda x: x[2], reverse=True)
+        
+        # 3. Move Selection
+        best_move, best_class_id, best_logit_score = scored_moves[0]
+        best_move_uci = best_move.uci()
+        
+        # Print Verification Output
+        print(f"Best legal move: {best_move_uci}")
+        print(f"Class ID: {best_class_id}")
+        print(f"Logit score: {best_logit_score:.4f}")
+        
+        # Print top 10 legal moves ranked by score
+        print("Top 10 legal moves ranked by score:")
+        for rank, (move, class_idx, score) in enumerate(scored_moves[:10], 1):
+            print(f"  Rank {rank:2d}: Move {move.uci()} | Class ID {class_idx:4d} | Logit {score:.4f}")
+            
+        return MovePrediction(
+            move=best_move,
+            uci=best_move_uci,
+            class_id=best_class_id,
+            logit=best_logit_score,
+            is_legal=True
+        )
+
 if __name__ == "__main__":
     try:
         inference = ChessInference()
-        print("\n" + "="*40 + "\nRUNNING BOARD ENCODING VERIFICATION SUITE\n" + "="*40)
+        print("\n" + "="*40 + "\nRUNNING BOARD ENCODING, INFERENCE & DECODING VERIFICATION SUITE\n" + "="*40)
         
         # Test positions
         test_positions = {
@@ -178,7 +338,7 @@ if __name__ == "__main__":
             "Checkmate Position": "7k/6Q1/6K1/8/8/8/8/8 b - - 0 1"
         }
         
-        # Run validation and encoding tests
+        # Run validation, encoding, inference, decoding, and filtering tests
         for name, fen in test_positions.items():
             print(f"Testing {name}:")
             print(f"FEN: {fen}")
@@ -191,7 +351,7 @@ if __name__ == "__main__":
                 # Step 3 Encode & Verify
                 tensor = inference.encode_current_board()
                 
-                # Assertions to programmatic verify correctness
+                # Assertions to programmatically verify correctness
                 assert tensor.shape == (1, 18, 8, 8), f"Incorrect shape: {tensor.shape}"
                 assert tensor.dtype == torch.float32, f"Incorrect dtype: {tensor.dtype}"
                 assert tensor.device.type == inference.device.type, f"Incorrect device type: {tensor.device} vs {inference.device}"
@@ -200,6 +360,52 @@ if __name__ == "__main__":
                 print("[OK] Tensor shape is (1, 18, 8, 8)")
                 print("[OK] Correct tensor dtype (float32)")
                 print("[OK] Tensor transferred to correct device")
+                
+                # Step 4 Inference & Verify
+                logits = inference.predict_logits()
+                assert logits.shape == (1, 4272), f"Incorrect logits shape: {logits.shape}"
+                assert logits.dtype == torch.float32, f"Incorrect logits dtype: {logits.dtype}"
+                assert logits.device.type == inference.device.type, f"Incorrect logits device type: {logits.device} vs {inference.device}"
+                print("[OK] Inference successful, logits shape is (1, 4272)")
+                
+                # Step 5 Decoding & Verify
+                print("Decoded top 10 predictions:")
+                decoded = inference.decode_predictions(10)
+                assert len(decoded) == 10, f"Expected 10 decoded predictions, got {len(decoded)}"
+                for pred in decoded:
+                    assert isinstance(pred, MovePrediction)
+                    assert isinstance(pred.class_id, int)
+                    assert isinstance(pred.logit, float)
+                    move_str = pred.uci
+                    # Verify basic UCI move format
+                    assert len(move_str) in (4, 5), f"Invalid UCI length: {move_str}"
+                    assert move_str[0] in "abcdefgh", f"Invalid start file: {move_str}"
+                    assert move_str[1] in "12345678", f"Invalid start rank: {move_str}"
+                    assert move_str[2] in "abcdefgh", f"Invalid end file: {move_str}"
+                    assert move_str[3] in "12345678", f"Invalid end rank: {move_str}"
+                    if len(move_str) == 5:
+                        assert move_str[4] in "qrbn", f"Invalid promotion piece: {move_str}"
+                print("[OK] Decoding successful and format verified")
+                
+                # Step 6 Legal Move Filtering & Verify
+                best_pred = inference.get_best_legal_move()
+                assert isinstance(best_pred, MovePrediction)
+                if name == "Checkmate Position":
+                    assert best_pred.move is None, f"Expected None for checkmate, got {best_pred.move}"
+                    assert best_pred.uci is None
+                    assert best_pred.class_id is None
+                    assert best_pred.logit is None
+                    assert best_pred.is_legal is False
+                    print("[OK] Checkmate position handled correctly (returned None prediction)")
+                else:
+                    assert best_pred.move is not None, "Expected a legal move, got None"
+                    assert best_pred.is_legal is True
+                    assert best_pred.move in inference.board.legal_moves, f"Move {best_pred.uci} is not legal on this board!"
+                    assert best_pred.uci == best_pred.move.uci()
+                    assert isinstance(best_pred.class_id, int)
+                    assert isinstance(best_pred.logit, float)
+                    print(f"[OK] Best legal move selected: {best_pred.uci}")
+                print("[OK] Legal move filtering successful")
                 print("-" * 40)
             except Exception as e:
                 print(f"[FAILED] Failed testing {name}: {e}\n")
