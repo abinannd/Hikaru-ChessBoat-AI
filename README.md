@@ -66,37 +66,7 @@ Hikaru/
 
 ---
 
-## Installation
 
-Follow these steps to set up the project locally:
-
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/abinannd/Hikaru.git
-   cd Hikaru
-   ```
-
-2. **Create a Virtual Environment**
-   ```bash
-   python -m venv .venv
-   ```
-
-3. **Activate the Virtual Environment**
-   * **Windows (PowerShell)**:
-     ```powershell
-     .venv\Scripts\Activate.ps1
-     ```
-   * **Linux/macOS**:
-     ```bash
-     source .venv/bin/activate
-     ```
-
-4. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
----
 
 ## Dataset
 
