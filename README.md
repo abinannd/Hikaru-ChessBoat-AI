@@ -214,11 +214,11 @@ python Main/src/inference.py
 
 | Phase | Report |
 |-------|--------|
-| Phase 1 | [View Report](reports/Phase_1_Report.md) |
-| Phase 2 | [View Report](reports/Phase_2_Report.md) |
-| Phase 3 | [View Report](reports/Phase_3_Report.md) |
-| Phase 4 | [View Report](reports/Phase_4_Report.md) |
-| Phase 5 | [View Report](reports/Phase_5_Report.md) |
+| Phase 1 | [View Reports](reports/Phase_1_Report.md) |
+| Phase 2 | [View Reports](reports/Phase_2_Report.md) |
+| Phase 3 | [View Reports](reports/Phase_3_Report.md) |
+| Phase 4 | [View Reports](reports/Phase_4_Report.md) |
+| Phase 5 | [View Reports](reports/Phase_5_Report.md) |
 
 ---
 
