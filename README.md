@@ -210,15 +210,23 @@ python Main/src/inference.py
 ```
 
 
-## 📚 Development Reports
+##  Documentation
 
-| Phase | Report |
-|-------|--------|
-| Phase 1 | [View Reports](reports/Phase_1_Report.md) |
-| Phase 2 | [View Reports](reports/Phase_2_Report.md) |
-| Phase 3 | [View Reports](reports/Phase_3_Report.md) |
-| Phase 4 | [View Reports](reports/Phase_4_Report.md) |
-| Phase 5 | [View Reports](reports/Phase_5_Report.md) |
+| Document | Description |
+|----------|-------------|
+| [ Phase 1 Report](reports/phase_1_report.md) | Dataset Preparation |
+| [ Phase 2 Report](reports/phase_2_report.md) | Sample Generation & Encoding |
+| [ Phase 3 Report](reports/phase_3_report.md) | PyTorch Dataset & Training Pipeline |
+| [ Phase 4 Report](reports/phase_4_report.md) | Dataset & Model Verification |
+| [ Phase 5 Report](reports/phase_5_report.md) | Neural Network Training |
+| [ Evaluation Report](reports/evaluation_report.md) | Model Performance Evaluation |
+| [ Evaluation Summary](reports/evaluation_summary.txt) | Quick Evaluation Results |
+| [ Repository Structure](reports/repository_structure.md) | Project Directory Overview |
+| [ Step 4 Verification](reports/step_4_verification_report.md) | Step 4 Validation Results |
+| [ Step 5 Verification](reports/step_5_verification_report.md) | Step 5 Validation Results |
+| [ Step 6 Verification](reports/step_6_verification_report.md) | Step 6 Validation Results |
+| [ Step 7 Verification](reports/step_7_verification_report.md) | Step 7 Validation Results |
+| [ Step 8 Verification](reports/step_8_verification_report.md) | Step 8 Validation Results |
 
 ---
 
