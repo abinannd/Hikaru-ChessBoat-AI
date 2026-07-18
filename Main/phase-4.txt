@@ -1,0 +1,66 @@
+Phase 4 – Step 3: Board Encoding
+
+Objective:
+Connect the loaded chess.Board object to the trained neural network by reusing the existing board encoder.
+
+IMPORTANT:
+Implement ONLY Step 3.
+Do NOT perform neural network inference, move decoding, legal move filtering, or gameplay.
+
+Requirements:
+
+1. Modify Main/src/inference.py.
+
+2. Reuse the existing board_encoder.py.
+   Do NOT rewrite or duplicate any encoding logic.
+
+3. Add a method to the ChessInference class:
+
+   encode_current_board()
+
+4. The method must:
+
+   - Use the internally stored chess.Board object.
+   - Call the existing board encoder.
+   - Produce exactly the same encoding used during training.
+   - Convert the encoded board into a PyTorch tensor.
+   - Add the batch dimension so the final tensor shape becomes:
+       (1, 18, 8, 8)
+   - Move the tensor to the same device as the model (CPU or CUDA).
+
+5. Print the following verification information:
+
+   - Original encoded shape
+   - Tensor shape
+   - Tensor dtype
+   - Device
+   - Minimum tensor value
+   - Maximum tensor value
+
+6. Verify the encoder using the same five legal test positions from Step 2:
+
+   - Initial position
+   - Midgame
+   - Endgame
+   - Promotion position
+   - Checkmate position
+
+7. For every test position verify:
+
+   ✓ Encoding successful
+   ✓ Tensor shape is (1,18,8,8)
+   ✓ Correct tensor dtype
+   ✓ Tensor transferred to correct device
+
+8. Do NOT feed the tensor into the CNN yet.
+
+Verification Report:
+
+For every board report:
+
+✓ Board encoded
+✓ Tensor created
+✓ Shape verified
+✓ Device verified
+
+Do NOT implement inference or prediction yet.
