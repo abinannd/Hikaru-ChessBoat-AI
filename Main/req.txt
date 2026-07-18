@@ -1,121 +1,101 @@
-Phase 6 – Task 2: Create Architecture Documentation
+Phase 6 – Task 3: Repository Organization
 
 Objective:
 
-Create:
+Clean the repository without changing functionality.
 
-docs/architecture.md
+Tasks:
 
-Explain the internal software architecture.
+1.
 
-Include sections:
+Create folders if missing:
 
-1. High-Level Architecture
+docs/
 
-Dataset
+reports/
 
-↓
+models/
 
-Training
+checkpoints/
 
-↓
+archive/
 
-Checkpoint
+2.
 
-↓
+Move reports:
 
-Inference
+phase_3_report.md
 
-↓
+phase_4_report.md
 
-CLI
+evaluation_report.md
 
-2. Module Descriptions
+verification reports
 
-Describe:
+into:
 
-board_encoder.py
+reports/
 
-move_encoder.py
+3.
 
-chess_model.py
+Move documentation into:
 
-train.py
+docs/
 
-inference.py
+README.md
 
-play_cli.py
+architecture.md
 
-evaluate.py
+roadmap.md
 
-3. Data Flow
+4.
 
-FEN
+Ensure source code stays inside:
 
-↓
+src/
 
-Board
+5.
 
-↓
+Keep datasets inside:
 
-Tensor
+data/
 
-↓
+6.
 
-CNN
+Keep trained models inside:
 
-↓
+models/
 
-4272 logits
+7.
 
-↓
+Remove:
 
-Legal Move Generator
+temporary files
 
-↓
+duplicate reports
 
-Best Move
+cache files
 
-4. Class Diagram
+unused scripts
 
-Describe:
+8.
 
-ChessInference
+Verify imports still work.
 
-MovePrediction
+9.
 
-CNN
+Produce:
 
-5. Folder Responsibilities
+repository_structure.md
 
-Describe every folder.
+showing the final folder tree.
 
-6. Design Decisions
+Do not modify AI functionality.
 
-Explain:
+Do not retrain.
 
-Why reuse encoder
+Do not rename public APIs.
 
-Why cached logits
+Only improve repository organization.
 
-Why legal move filtering
 
-Why MovePrediction
-
-Why modular API
-
-7. Future Extension Points
-
-GUI
-
-REST API
-
-Reinforcement Learning
-
-Search Algorithms
-
-Requirements:
-
-Professional technical documentation.
-
-Markdown only.

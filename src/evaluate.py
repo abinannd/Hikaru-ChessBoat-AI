@@ -8,16 +8,16 @@ import torch
 import chess
 import chess.pgn
 
-# Resolve the repository root (two levels up from Main/src/)
-REPO_ROOT = Path(__file__).resolve().parents[2]
+# Resolve the repository root (one level up from src/)
+REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from Main.src.inference import ChessInference, MovePrediction
+from src.inference import ChessInference, MovePrediction
 
 def main():
     parser = argparse.ArgumentParser(description="AI Move Prediction Evaluation Utility")
-    parser.add_argument("--pgn", type=str, default=str(REPO_ROOT / "Main" / "data" / "splits" / "test.pgn"),
+    parser.add_argument("--pgn", type=str, default=str(REPO_ROOT / "data" / "splits" / "test.pgn"),
                         help="Path to evaluation PGN file")
     parser.add_argument("--subset", type=int, default=None,
                         help="Number of games to evaluate (default: all)")
@@ -139,7 +139,7 @@ def main():
                 
                 # Encode the actual move played
                 try:
-                    from Main.move_encoder import encode_move
+                    from src.move_encoder import encode_move
                     actual_class_id = encode_move(move)
                 except Exception as e:
                     stats["prediction_failures"] += 1

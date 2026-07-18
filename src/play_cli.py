@@ -3,12 +3,12 @@ from pathlib import Path
 import argparse
 import chess
 
-# Resolve the repository root (two levels up from Main/src/)
-REPO_ROOT = Path(__file__).resolve().parents[2]
+# Resolve the repository root (one level up from src/)
+REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from Main.src.inference import ChessInference, MovePrediction
+from src.inference import ChessInference, MovePrediction
 
 def print_game_state(board: chess.Board):
     """Prints the ASCII representation of the board along with metadata."""

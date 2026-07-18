@@ -10,8 +10,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from Main.chess_dataset import create_dataloaders
-from Main.chess_model import ChessMoveCNN
+from src.chess_dataset import create_dataloaders
+from src.chess_model import ChessMoveCNN
 
 
 def run_single_epoch(model, loader, criterion, optimizer, device, training: bool, limit_batches: int | None = None):
@@ -81,7 +81,7 @@ def main():
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
-    models_dir = REPO_ROOT / "Main" / "models"
+    models_dir = REPO_ROOT / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
 
     best_val_loss = float("inf")

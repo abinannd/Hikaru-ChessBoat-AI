@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 import tempfile
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from data.pgn import write_split_files
 

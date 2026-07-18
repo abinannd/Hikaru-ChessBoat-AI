@@ -4,9 +4,9 @@ from pathlib import Path
 
 import chess
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from move_encoder import (
+from src.move_encoder import (
     PROMOTION_OFFSET,
     PROMOTION_PAIR_COUNT,
     PROMOTION_PIECE_TYPES,

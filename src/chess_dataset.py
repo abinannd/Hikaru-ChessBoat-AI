@@ -10,8 +10,8 @@ try:
     from .board_encoder import encode_board
     from .move_encoder import TOTAL_CLASSES, encode_move
 except ImportError:  # pragma: no cover - allows running the file directly
-    from board_encoder import encode_board
-    from move_encoder import TOTAL_CLASSES, encode_move
+    from src.board_encoder import encode_board
+    from src.move_encoder import TOTAL_CLASSES, encode_move
 
 
 class ChessPGNDataset(Dataset):
@@ -22,7 +22,7 @@ class ChessPGNDataset(Dataset):
             raise ValueError("split_name must be one of: train, validation, test")
 
         if data_dir is None:
-            data_dir = Path(__file__).resolve().parent / "data" / "splits"
+            data_dir = Path(__file__).resolve().parent.parent / "data" / "splits"
         self.data_dir = Path(data_dir)
         self.split_name = split_name
         self.pgn_path = self.data_dir / f"{split_name}.pgn"
@@ -86,7 +86,7 @@ def create_dataloaders(
 ) -> dict[str, DataLoader]:
     """Create train/validation/test DataLoaders for the split PGN files."""
     if data_dir is None:
-        data_dir = Path(__file__).resolve().parent / "data" / "splits"
+        data_dir = Path(__file__).resolve().parent.parent / "data" / "splits"
 
     datasets = {
         "train": ChessPGNDataset("train", data_dir=data_dir),
