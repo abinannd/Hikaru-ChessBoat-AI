@@ -1,142 +1,210 @@
-Phase 5 – Step 9: Evaluation & Benchmarking
+Phase 6 – Task 1: Create Professional README.md
 
 Objective:
-Evaluate the playing strength and prediction quality of the supervised chess AI.
+Create a complete GitHub README for the Supervised Chess AI project.
 
-IMPORTANT:
-Do NOT modify the trained model.
-Do NOT retrain.
-Do NOT change inference logic.
+The README should be suitable for an open-source repository.
 
-----------------------------------------------------
-Create
-----------------------------------------------------
+Include the following sections:
 
-Main/src/evaluate.py
+# Supervised Chess AI
 
-----------------------------------------------------
-Requirements
-----------------------------------------------------
+Short project description.
 
-1. Load the trained model using ChessInference.
+---
 
-2. Read a PGN file containing evaluation games.
+## Features
 
-3. Replay every game move by move.
+- CNN-based Chess AI
+- Supervised learning
+- GPU training (CUDA)
+- Board encoder
+- Move encoder
+- Legal move filtering
+- Human vs AI CLI
+- Evaluation pipeline
+- Performance benchmarking
 
-For every position:
+---
 
-- Generate the AI prediction.
-- Compare it to the actual move played.
+## Project Overview
 
-Record:
+Explain the complete workflow from dataset to gameplay.
 
-- Correct prediction (Top-1)
-- Whether the actual move appears in the Top-3
-- Whether the actual move appears in the Top-5
-- Whether the actual move appears in the Top-10
+Include a pipeline diagram.
 
-----------------------------------------------------
-Statistics
-----------------------------------------------------
+Example:
 
-Compute:
+Dataset
+↓
+Board Encoder
+↓
+CNN
+↓
+4272 Move Classes
+↓
+Legal Move Selection
+↓
+CLI Gameplay
 
-Total positions evaluated
+---
 
-Top-1 accuracy
+## Project Structure
 
-Top-3 accuracy
+Describe every major folder.
 
-Top-5 accuracy
+Example:
 
-Top-10 accuracy
+Main/
+├── data/
+├── models/
+├── src/
+├── reports/
+├── docs/
 
-Average inference time
+Explain the purpose of each.
 
-Average legal moves
+---
 
-Prediction failures
+## Installation
 
-Invalid positions skipped
+Clone repository
 
-----------------------------------------------------
-Move Analysis
-----------------------------------------------------
+Create virtual environment
 
-Separate statistics for:
+Install requirements
 
-Opening
-(Moves 1–10)
+Commands:
 
-Middlegame
-(Moves 11–40)
+git clone ...
 
-Endgame
-(Move 41+)
+python -m venv .venv
 
-----------------------------------------------------
-Game Outcome Analysis
-----------------------------------------------------
+pip install -r requirements.txt
 
-Separate prediction accuracy for:
+---
 
-White wins
+## Dataset
 
-Black wins
+Explain:
 
-Draws
+- PGN games
+- Train/Validation/Test split
+- Board encoding
+- Move encoding
 
-----------------------------------------------------
-Output
-----------------------------------------------------
+---
 
-Create:
+## Model Architecture
 
-evaluation_report.md
+Describe:
 
-evaluation_summary.txt
+Input:
+18×8×8
 
-Print:
+CNN
 
-Overall statistics
+Output:
+4272 move classes
 
-Performance table
+---
 
-Inference timing
+## Training
 
-----------------------------------------------------
-Verification
-----------------------------------------------------
+Explain:
 
-Verify on a subset of games first.
+- Optimizer
+- Loss
+- Epochs
+- Best checkpoint
+- Last checkpoint
 
-Then verify on the full evaluation dataset.
+---
 
-Ensure:
+## Inference Pipeline
 
-✓ No crashes
+Explain:
 
-✓ Invalid PGNs skipped gracefully
+FEN
+↓
+Board Encoding
+↓
+CNN
+↓
+Legal Move Filtering
+↓
+Best Move
 
-✓ Accurate statistics
+---
 
-✓ Consistent inference timing
+## Evaluation Results
 
-----------------------------------------------------
-Constraints
-----------------------------------------------------
+Include:
 
-Reuse:
+Top-1
 
-ChessInference
+Top-3
 
-MovePrediction
+Top-5
 
-board_encoder
+Top-10
 
-move_encoder
+Inference speed
 
-Do NOT duplicate logic.
+Opening accuracy
 
-Do NOT perform any training.
+Middlegame accuracy
+
+Endgame accuracy
+
+---
+
+## Running the Project
+
+Examples:
+
+python train.py
+
+python evaluate.py
+
+python play_cli.py
+
+---
+
+## Future Improvements
+
+- Larger dataset
+- Stronger CNN
+- GUI
+- Stockfish comparison
+- Reinforcement Learning
+- MCTS
+
+---
+
+## License
+
+MIT License
+
+---
+
+## Acknowledgements
+
+python-chess
+
+PyTorch
+
+CUDA
+
+NumPy
+
+PGN datasets
+
+Requirements:
+
+Write clean Markdown.
+
+Include tables where appropriate.
+
+Do not invent project features.
+Reuse existing project information.
