@@ -209,6 +209,17 @@ Run the unit test verification suite:
 python Main/src/inference.py
 ```
 
+
+## 📚 Development Reports
+
+| Phase | Report |
+|-------|--------|
+| Phase 1 | [View Report](Reports/Phase_1_Report.md) |
+| Phase 2 | [View Report](Reports/Phase_2_Report.md) |
+| Phase 3 | [View Report](Reports/Phase_3_Report.md) |
+| Phase 4 | [View Report](Reports/Phase_4_Report.md) |
+| Phase 5 | [View Report](Reports/Phase_5_Report.md) |
+
 ---
 
 ## Future Improvements
