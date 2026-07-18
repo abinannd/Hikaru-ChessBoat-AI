@@ -1,210 +1,121 @@
-Phase 6 – Task 1: Create Professional README.md
+Phase 6 – Task 2: Create Architecture Documentation
 
 Objective:
-Create a complete GitHub README for the Supervised Chess AI project.
 
-The README should be suitable for an open-source repository.
+Create:
 
-Include the following sections:
+docs/architecture.md
 
-# Supervised Chess AI
+Explain the internal software architecture.
 
-Short project description.
+Include sections:
 
----
-
-## Features
-
-- CNN-based Chess AI
-- Supervised learning
-- GPU training (CUDA)
-- Board encoder
-- Move encoder
-- Legal move filtering
-- Human vs AI CLI
-- Evaluation pipeline
-- Performance benchmarking
-
----
-
-## Project Overview
-
-Explain the complete workflow from dataset to gameplay.
-
-Include a pipeline diagram.
-
-Example:
+1. High-Level Architecture
 
 Dataset
+
 ↓
-Board Encoder
+
+Training
+
 ↓
-CNN
+
+Checkpoint
+
 ↓
-4272 Move Classes
+
+Inference
+
 ↓
-Legal Move Selection
-↓
-CLI Gameplay
 
----
+CLI
 
-## Project Structure
-
-Describe every major folder.
-
-Example:
-
-Main/
-├── data/
-├── models/
-├── src/
-├── reports/
-├── docs/
-
-Explain the purpose of each.
-
----
-
-## Installation
-
-Clone repository
-
-Create virtual environment
-
-Install requirements
-
-Commands:
-
-git clone ...
-
-python -m venv .venv
-
-pip install -r requirements.txt
-
----
-
-## Dataset
-
-Explain:
-
-- PGN games
-- Train/Validation/Test split
-- Board encoding
-- Move encoding
-
----
-
-## Model Architecture
+2. Module Descriptions
 
 Describe:
 
-Input:
-18×8×8
+board_encoder.py
 
-CNN
+move_encoder.py
 
-Output:
-4272 move classes
+chess_model.py
 
----
+train.py
 
-## Training
+inference.py
 
-Explain:
+play_cli.py
 
-- Optimizer
-- Loss
-- Epochs
-- Best checkpoint
-- Last checkpoint
+evaluate.py
 
----
-
-## Inference Pipeline
-
-Explain:
+3. Data Flow
 
 FEN
+
 ↓
-Board Encoding
+
+Board
+
 ↓
+
+Tensor
+
+↓
+
 CNN
+
 ↓
-Legal Move Filtering
+
+4272 logits
+
 ↓
+
+Legal Move Generator
+
+↓
+
 Best Move
 
----
+4. Class Diagram
 
-## Evaluation Results
+Describe:
 
-Include:
+ChessInference
 
-Top-1
+MovePrediction
 
-Top-3
+CNN
 
-Top-5
+5. Folder Responsibilities
 
-Top-10
+Describe every folder.
 
-Inference speed
+6. Design Decisions
 
-Opening accuracy
+Explain:
 
-Middlegame accuracy
+Why reuse encoder
 
-Endgame accuracy
+Why cached logits
 
----
+Why legal move filtering
 
-## Running the Project
+Why MovePrediction
 
-Examples:
+Why modular API
 
-python train.py
+7. Future Extension Points
 
-python evaluate.py
+GUI
 
-python play_cli.py
+REST API
 
----
+Reinforcement Learning
 
-## Future Improvements
-
-- Larger dataset
-- Stronger CNN
-- GUI
-- Stockfish comparison
-- Reinforcement Learning
-- MCTS
-
----
-
-## License
-
-MIT License
-
----
-
-## Acknowledgements
-
-python-chess
-
-PyTorch
-
-CUDA
-
-NumPy
-
-PGN datasets
+Search Algorithms
 
 Requirements:
 
-Write clean Markdown.
+Professional technical documentation.
 
-Include tables where appropriate.
-
-Do not invent project features.
-Reuse existing project information.
+Markdown only.
