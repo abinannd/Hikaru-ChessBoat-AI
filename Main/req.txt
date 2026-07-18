@@ -1,2 +1,142 @@
-model should play both white and black
-python-chess
+Phase 5 – Step 9: Evaluation & Benchmarking
+
+Objective:
+Evaluate the playing strength and prediction quality of the supervised chess AI.
+
+IMPORTANT:
+Do NOT modify the trained model.
+Do NOT retrain.
+Do NOT change inference logic.
+
+----------------------------------------------------
+Create
+----------------------------------------------------
+
+Main/src/evaluate.py
+
+----------------------------------------------------
+Requirements
+----------------------------------------------------
+
+1. Load the trained model using ChessInference.
+
+2. Read a PGN file containing evaluation games.
+
+3. Replay every game move by move.
+
+For every position:
+
+- Generate the AI prediction.
+- Compare it to the actual move played.
+
+Record:
+
+- Correct prediction (Top-1)
+- Whether the actual move appears in the Top-3
+- Whether the actual move appears in the Top-5
+- Whether the actual move appears in the Top-10
+
+----------------------------------------------------
+Statistics
+----------------------------------------------------
+
+Compute:
+
+Total positions evaluated
+
+Top-1 accuracy
+
+Top-3 accuracy
+
+Top-5 accuracy
+
+Top-10 accuracy
+
+Average inference time
+
+Average legal moves
+
+Prediction failures
+
+Invalid positions skipped
+
+----------------------------------------------------
+Move Analysis
+----------------------------------------------------
+
+Separate statistics for:
+
+Opening
+(Moves 1–10)
+
+Middlegame
+(Moves 11–40)
+
+Endgame
+(Move 41+)
+
+----------------------------------------------------
+Game Outcome Analysis
+----------------------------------------------------
+
+Separate prediction accuracy for:
+
+White wins
+
+Black wins
+
+Draws
+
+----------------------------------------------------
+Output
+----------------------------------------------------
+
+Create:
+
+evaluation_report.md
+
+evaluation_summary.txt
+
+Print:
+
+Overall statistics
+
+Performance table
+
+Inference timing
+
+----------------------------------------------------
+Verification
+----------------------------------------------------
+
+Verify on a subset of games first.
+
+Then verify on the full evaluation dataset.
+
+Ensure:
+
+✓ No crashes
+
+✓ Invalid PGNs skipped gracefully
+
+✓ Accurate statistics
+
+✓ Consistent inference timing
+
+----------------------------------------------------
+Constraints
+----------------------------------------------------
+
+Reuse:
+
+ChessInference
+
+MovePrediction
+
+board_encoder
+
+move_encoder
+
+Do NOT duplicate logic.
+
+Do NOT perform any training.
