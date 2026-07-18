@@ -1,0 +1,23 @@
+Project name: Hikaru Chess AI
+Training date: 2026-07-18
+Total epochs: 10
+Total training time: 13598.66 seconds (3 hours, 46 minutes, 38.66 seconds)
+Best epoch: 9
+Best validation loss: 4.298130718785245
+Best validation accuracy: 0.19579242636746144 (Epoch 10 had 19.58% accuracy, while Epoch 9 had 19.04% accuracy)
+Final epoch metrics:
+  Epoch: 10
+  Training Loss: 3.867182728620241
+  Validation Loss: 4.301957802953091
+  Training Top-1 Accuracy: 21.30%
+  Validation Top-1 Accuracy: 19.58%
+  Duration: 1313.84 seconds
+CNN parameter count: 751,248 parameters
+Dataset sizes:
+  Training dataset: 254,890 samples
+  Validation dataset: 32,085 samples
+Batch size: 32
+Optimizer: Adam (learning rate = 1e-3)
+Loss function: CrossEntropyLoss
+GPU used: NVIDIA GeForce RTX 2050
+PyTorch version: 2.5.1+cu121
