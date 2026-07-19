@@ -1,17 +1,17 @@
 ==================================================
 CHESS AI EVALUATION SUMMARY
 ==================================================
-Total Games Processed:      374
-Total Positions Evaluated:  31444
-Evaluation Duration:        105.13 seconds
-Average Inference Time:     2.02 ms
-Average Legal Moves:        31.4
+Total Games Processed:      606
+Total Positions Evaluated:  54041
+Evaluation Duration:        161.91 seconds
+Average Inference Time:     1.81 ms
+Average Legal Moves:        30.7
 Prediction Failures:        0
 Invalid Positions Skipped:  0
 --------------------------------------------------
 ACCURACY METRICS:
-  Top-1 Accuracy:  18.02%
-  Top-3 Accuracy:  30.14%
-  Top-5 Accuracy:  36.81%
-  Top-10 Accuracy: 46.50%
+  Top-1 Accuracy:  18.41%
+  Top-3 Accuracy:  32.26%
+  Top-5 Accuracy:  39.43%
+  Top-10 Accuracy: 49.87%
 ==================================================

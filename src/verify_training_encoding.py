@@ -4,7 +4,7 @@ import sys
 import chess
 import chess.pgn as pgn
 
-sys.path.append(str(Path(__file__).resolve().parent))
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from src.board_encoder import encode_board
 from src.move_encoder import TOTAL_CLASSES, decode_move, encode_move
@@ -62,7 +62,7 @@ def validate_split(path):
 
 
 def main():
-    script_dir = Path(__file__).resolve().parent
+    script_dir = Path(__file__).resolve().parent.parent
     split_paths = [
         script_dir / "data" / "splits" / "train.pgn",
         script_dir / "data" / "splits" / "validation.pgn",

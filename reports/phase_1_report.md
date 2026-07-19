@@ -1,15 +1,14 @@
-
 <div align="center">
 
 # ♟️ Supervised Chess AI — Dataset Pipeline
 
-### Phase 1 · Dataset Preparation
+### Phase 1 · Dataset Preparation (Updated)
 
 *A clean, reproducible pipeline for turning raw PGN archives into training-ready chess data.*
 
 ![Status](https://img.shields.io/badge/status-complete-brightgreen)
-![Games](https://img.shields.io/badge/games-3%2C772-blue)
-![Tests](https://img.shields.io/badge/tests-3%20passed-success)
+![Games](https://img.shields.io/badge/games-6%2C047-blue)
+![Tests](https://img.shields.io/badge/tests-9%20passed-success)
 ![Python](https://img.shields.io/badge/python-chess-informational)
 ![Seed](https://img.shields.io/badge/seed-42-lightgrey)
 
@@ -40,7 +39,7 @@
 
 Phase 1 focuses on preparing a clean, reliable, and reproducible **chess game dataset** for training a supervised-learning chess AI.
 
-The source dataset is a **PGN (Portable Game Notation)** file containing historical chess games. Before any of it touches a model, every game is **inspected → analyzed → filtered → shuffled → split → saved → verified**, with automated tests guarding the whole process.
+The source dataset is constructed by merging the original chess dataset with an additional high-quality chess game archive. Before any of it touches a model, every game is **inspected → analyzed → filtered → shuffled → split → saved → verified**, with automated tests guarding the whole process.
 
 > **What's a "ply"?** One move by one player. `1. e4 e5` = 2 plies (one white, one black).
 
@@ -50,17 +49,17 @@ The source dataset is a **PGN (Portable Game Notation)** file containing histori
 
 ```mermaid
 flowchart TD
-    A["Original PGN Dataset<br/>3,772 games"] --> B["PGN Parsing & Inspection"]
+    A["Original & Malakhov PGNs<br/>6,123 games"] --> B["PGN Parsing & Inspection"]
     B --> C["Game Result Analysis"]
     C --> D["Game Length Analysis"]
-    D --> E["Dataset Filtering<br/><small>remove games &lt; 20 plies</small>"]
-    E --> F["3,736 accepted games"]
-    F --> G["Elo Analysis<br/><small>no filtering applied</small>"]
+    D --> E["Dataset Filtering & Deduplication<br/><small>remove games &lt; 20 plies & duplicates</small>"]
+    E --> F["6,047 unique accepted games"]
+    F --> G["Elo Analysis"]
     G --> H["Random Shuffle<br/><small>seed = 42</small>"]
-    H --> I["Game-Level Split"]
-    I --> J["Train<br/>2,988 games"]
-    I --> K["Validation<br/>374 games"]
-    I --> L["Test<br/>374 games"]
+    H --> I["Game-Level Split (80/10/10)"]
+    I --> J["Train<br/>4,837 games"]
+    I --> K["Validation<br/>604 games"]
+    I --> L["Test<br/>606 games"]
     J --> M["Read-Back Verification"]
     K --> M
     L --> M
@@ -76,31 +75,31 @@ flowchart TD
 
 ##  1. Initial Dataset Inspection
 
-The PGN dataset was parsed with the `python-chess` library to confirm that games, player metadata, results, and move sequences could all be extracted correctly.
+The PGN datasets were parsed using `python-chess` to confirm that games, player metadata, results, and move sequences could all be extracted correctly.
 
 | Metric | Result |
 |---|---:|
-| Total games | **3,772** |
-| Shortest game | 0 plies |
-| Longest game | 332 plies |
-| Average game length | 84.50 plies |
-| Games with fewer than 20 plies | 36 |
+| Total games parsed | **6,123** |
+| Shortest game parsed | 0 plies |
+| Longest game parsed | 400 plies |
+| Average game length | 87.83 plies |
+| Games with fewer than 20 plies | 75 |
 
 ---
 
 ##  2. Game Result Analysis
 
-Every result header across all 3,772 games was checked for completeness.
+Every result header across all games was checked for completeness.
 
 | Game Result | Games | Share |
 |---|---:|---:|
-| White wins (`1-0`) | 1,235 | 32.7% |
-| Black wins (`0-1`) | 771 | 20.4% |
-| Draws (`1/2-1/2`) | 1,766 | 46.8% |
-| Unknown / Other | 0 | 0.0% |
-| **Total** | **3,772** | **100%** |
+| White wins (`1-0`) | 2,021 | 33.42% |
+| Black wins (`0-1`) | 1,314 | 21.73% |
+| Draws (`1/2-1/2`) | 2,712 | 44.85% |
+| Unknown / Other | 0 | 0.00% |
+| **Total** | **6,047** | **100%** |
 
-✅ All games contained valid result information — no cleanup needed here.
+✅ All unique accepted games contained valid result information.
 
 ---
 
@@ -110,29 +109,26 @@ Very short games carry little useful board-position/move-pair signal for supervi
 
 | Game Length | Number of Games |
 |---|---:|
-| 0 plies | 14 |
-| 1–5 plies | 3 |
-| 6–10 plies | 0 |
-| 11–19 plies | 19 |
-| 20+ plies | 3,736 |
-| **Total** | **3,772** |
+| < 20 plies | 75 |
+| 20+ plies | 6,048 |
+| **Total** | **6,123** |
 
-- **14 zero-ply games** → no playable moves, zero training samples possible.
-- **36 games in total** fell below the 20-ply threshold.
+- **75 games** fell below the 20-ply threshold and were rejected.
+- **1 duplicate game** was detected and removed.
+- **6,047 unique accepted games** were retained.
 
 ---
 
 ##  4. Dataset Filtering
 
-**Rule applied:** only games with **20 or more plies** are accepted into the ML dataset.
+**Rule applied:** only unique games with **20 or more plies** are accepted into the ML dataset.
 
 | Dataset Status | Games |
 |---|---:|
-| ✅ Accepted (20+ plies) | 3,736 |
-| ❌ Rejected (< 20 plies) | 36 |
-| Original | 3,772 |
-
-> Rejected games are **not deleted** from the raw PGN — they're simply excluded during dataset preparation, keeping the source archive intact.
+| ✅ Accepted (20+ plies, unique) | 6,047 |
+| ❌ Rejected (< 20 plies) | 75 |
+| ❌ Duplicate Removed | 1 |
+| **Original Parsed** | **6,123** |
 
 ---
 
@@ -142,25 +138,24 @@ Player ratings were reviewed to understand the playing strength represented in t
 
 | Elo Metric | Result |
 |---|---:|
-| Games with Elo for both players | 3,700 |
-| Games missing Elo (one/both) | 72 |
 | Minimum available Elo | 1,382 |
 | Maximum available Elo | 2,865 |
-| Average available Elo | 2,626.65 |
+| Average available Elo | 2,616.51 |
+| Median available Elo | 2,658.00 |
 
-The high average Elo confirms this is largely **high-level chess**. No Elo-based filtering was applied — missing Elo doesn't imply unusable moves, so those games were retained.
+The high average Elo confirms this is master-level chess play.
 
 ---
 
 ##  6. Dataset Shuffling
 
-After filtering, **3,736 accepted games** remained and were randomly shuffled prior to splitting.
+After filtering, **6,047 unique accepted games** remained and were randomly shuffled prior to splitting.
 
 ```
 Random seed = 42
 ```
 
-A fixed seed guarantees the split is **fully reproducible** — rerunning the pipeline on the same data yields identical train/validation/test assignments every time.
+A fixed seed guarantees the split is **fully reproducible**.
 
 ---
 
@@ -170,12 +165,10 @@ An **80 / 10 / 10** split was applied **at the game level** (not per-position), 
 
 | Dataset | Games | Purpose |
 |---|---:|---|
-| 🟩 Training | 2,988 | Train the neural network |
-| 🟨 Validation | 374 | Monitor performance during development |
-| 🟦 Testing | 374 | Final evaluation on unseen games |
-| **Total** | **3,736** | |
-
-> **Why split by game, not by position?** A single game contains many highly correlated consecutive positions. Splitting positions randomly would leak information between train and test sets, inflating evaluation scores artificially.
+| 🟩 Training | 4,837 | Train the neural network |
+| 🟨 Validation | 604 | Monitor performance and early stopping |
+| 🟦 Testing | 606 | Final evaluation on unseen games |
+| **Total** | **6,047** | |
 
 ---
 
@@ -188,8 +181,6 @@ An **80 / 10 / 10** split was applied **at the game level** (not per-position), 
 | Validation ↔ Test overlap | None |
 | **Overall overlap check** | **✅ Passed** |
 
-Confirms the test set is genuinely unseen during training.
-
 ---
 
 ##  9. Saving the Dataset Splits
@@ -198,8 +189,6 @@ Each split was saved as an independent PGN file:
 
 ```text
 data/
-├── original_dataset.pgn
-│
 └── splits/
     ├── train.pgn
     ├── validation.pgn
@@ -208,30 +197,27 @@ data/
 
 | File | Games |
 |---|---:|
-| `train.pgn` | 2,988 |
-| `validation.pgn` | 374 |
-| `test.pgn` | 374 |
-
-Full PGN fidelity is preserved — headers and move sequences included — for every game.
+| `train.pgn` | 4,837 |
+| `validation.pgn` | 604 |
+| `test.pgn` | 606 |
 
 ---
 
 ##  10. Saved Dataset Verification
 
-Each saved file was reopened and re-parsed to confirm nothing was lost, duplicated, or corrupted during the save.
+Each saved file was reopened and re-parsed to confirm game counts match exactly.
 
 | PGN File | Expected | Read Back | Verification |
 |---|---:|---:|---|
-| `train.pgn` | 2,988 | 2,988 | ✅ Passed |
-| `validation.pgn` | 374 | 374 | ✅ Passed |
-| `test.pgn` | 374 | 374 | ✅ Passed |
+| `train.pgn` | 4,837 | 4,837 | ✅ Passed |
+| `validation.pgn` | 604 | 604 | ✅ Passed |
+| `test.pgn` | 606 | 606 | ✅ Passed |
 
 ---
 
 ##  11. Regression Testing
 
-Automated tests guard the pipeline against regressions in future changes, covering:
-
+Automated tests guard the pipeline against regressions, covering:
 - Correct dataset filtering
 - Correct train / validation / test sizes
 - No overlap between splits
@@ -239,7 +225,7 @@ Automated tests guard the pipeline against regressions in future changes, coveri
 - Correct PGN read-back
 
 ```text
-3 passed
+9 passed
 ```
 
 ---
@@ -262,9 +248,3 @@ Automated tests guard the pipeline against regressions in future changes, coveri
 - [x] Protected by regression tests
 
 </details>
-
-
----
-
-
-</div>

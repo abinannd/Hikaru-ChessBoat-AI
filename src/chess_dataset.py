@@ -15,7 +15,7 @@ except ImportError:  # pragma: no cover - allows running the file directly
 
 
 class ChessPGNDataset(Dataset):
-    """Lazy-loading chess dataset that encodes board states and target moves on demand."""
+    """Memory-cached chess dataset that encodes board states and target moves in memory for high-speed training."""
 
     def __init__(self, split_name: str, data_dir: str | Path | None = None):
         if split_name not in {"train", "validation", "test"}:
@@ -30,53 +30,39 @@ class ChessPGNDataset(Dataset):
         if not self.pgn_path.exists():
             raise FileNotFoundError(f"PGN file not found: {self.pgn_path}")
 
-        self.samples: List[Tuple[int, int]] = self._build_sample_index()
+        print(f"Loading and encoding split '{self.split_name}' in memory...")
+        boards_list = []
+        moves_list = []
 
-    def _build_sample_index(self) -> List[Tuple[int, int]]:
-        """Create lightweight metadata for each sample as (game_offset, plies_before_move)."""
-        sample_index: List[Tuple[int, int]] = []
         with self.pgn_path.open("r", encoding="utf-8") as handle:
             while True:
-                game_offset = handle.tell()
                 game = chess.pgn.read_game(handle)
                 if game is None:
                     break
 
-                move_list = list(game.mainline_moves())
-                for ply_index in range(len(move_list)):
-                    sample_index.append((game_offset, ply_index))
+                board = game.board()
+                for move in game.mainline_moves():
+                    board_state = encode_board(board)
+                    move_class = encode_move(move)
+                    
+                    boards_list.append(board_state)
+                    moves_list.append(move_class)
+                    
+                    board.push(move)
 
-        return sample_index
+        self.boards = torch.from_numpy(np.array(boards_list, dtype=np.float32))
+        self.moves = torch.tensor(moves_list, dtype=torch.long)
+        self.samples = list(range(len(self.moves)))  # maintain compatibility with .samples checks if any
+        
+        print(f"Loaded {len(self.moves)} samples for split '{self.split_name}' successfully.")
 
     def __len__(self) -> int:
-        return len(self.samples)
+        return len(self.moves)
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        if index < 0 or index >= len(self.samples):
+        if index < 0 or index >= len(self.moves):
             raise IndexError(f"Dataset index {index} is out of range for split {self.split_name}")
-
-        game_offset, plies_before_move = self.samples[index]
-        with self.pgn_path.open("r", encoding="utf-8") as handle:
-            handle.seek(game_offset)
-            game = chess.pgn.read_game(handle)
-            if game is None:
-                raise ValueError(f"Unable to read game at offset {game_offset} in {self.pgn_path}")
-
-            board = game.board()
-            move_list = list(game.mainline_moves())
-            for move_index in range(plies_before_move):
-                board.push(move_list[move_index])
-
-            target_move = move_list[plies_before_move]
-            board_state = encode_board(board)
-            move_class = encode_move(target_move)
-
-        if not 0 <= move_class <= TOTAL_CLASSES - 1:
-            raise ValueError(f"Encoded move class {move_class} is out of range for split {self.split_name}")
-
-        board_tensor = torch.from_numpy(board_state.astype(np.float32, copy=False))
-        target_tensor = torch.tensor(move_class, dtype=torch.long)
-        return board_tensor, target_tensor
+        return self.boards[index], self.moves[index]
 
 
 def create_dataloaders(

@@ -23,7 +23,7 @@ def count_samples_in_pgn(pgn_path):
 def count_samples_in_splits(split_dir=None):
     """Count position-to-next-move samples for each split and combined total."""
     if split_dir is None:
-        split_dir = Path(__file__).resolve().parent / "data" / "splits"
+        split_dir = Path(__file__).resolve().parent.parent / "data" / "splits"
 
     split_names = ["train", "validation", "test"]
     counts = {}

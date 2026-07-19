@@ -1,0 +1,21 @@
+=== Information stored in best_model.pth ===
+SHA256 Hash: b1ab45a4ef0742d6299acc9803dc877d82c19dbbc3611d9eed09b2814e6fa811
+File Size: 9,030,050 bytes
+Stored Epoch: 10
+Stored Training Loss: 3.8077885782765475
+Stored Validation Loss: 4.064243743725291
+Stored Training Accuracy: 20.68%
+Stored Validation Accuracy: 19.38%
+Creation Time: Sat Jul 18 22:51:56 2026
+Modification Time: Sun Jul 19 20:26:32 2026
+
+=== Information stored in last_model.pth ===
+SHA256 Hash: 5816691998af3fe850e3d4e8597141c65ee5e9109845930ca94481b71e55ddf2
+File Size: 9,030,050 bytes
+Stored Epoch: 10
+Stored Training Loss: 3.8077885782765475
+Stored Validation Loss: 4.064243743725291
+Stored Training Accuracy: 20.68%
+Stored Validation Accuracy: 19.38%
+Creation Time: Sat Jul 18 22:51:56 2026
+Modification Time: Sun Jul 19 20:26:32 2026

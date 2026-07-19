@@ -1,101 +1,271 @@
-Phase 6 – Task 3: Repository Organization
-
 Objective:
+Expand the supervised chess AI by incorporating additional PGN training data and rebuilding the entire supervised-learning pipeline while preserving the existing project architecture.
 
-Clean the repository without changing functionality.
+IMPORTANT:
+Do NOT overwrite or delete the previous trained models or reports.
+Archive the previous outputs before generating new ones.
 
-Tasks:
+====================================================
+Phase 1 – Dataset Update
+====================================================
 
-1.
+1. Merge the existing PGN dataset with the newly supplied PGN file(s).
 
-Create folders if missing:
+2. Validate every game.
 
-docs/
+3. Remove:
 
-reports/
+- Corrupted PGNs
+- Empty games
+- Games with fewer than 20 plies
+- Invalid move sequences
 
-models/
+4. Produce updated statistics:
 
-checkpoints/
+- Total games
+- Accepted games
+- Rejected games
+- Game result distribution
+- Ply statistics
+- Elo statistics
+- Duplicate game count (if detected)
 
-archive/
+5. Save a new dataset report.
 
-2.
+====================================================
+Dataset Split
+====================================================
 
-Move reports:
+Repeat the exact previous workflow.
 
-phase_3_report.md
+Shuffle using the fixed random seed.
 
-phase_4_report.md
+Generate:
 
-evaluation_report.md
+Train
 
-verification reports
+Validation
 
-into:
+Test
 
-reports/
+using the same split ratio.
 
-3.
+Verify:
 
-Move documentation into:
+- Counts
+- No overlap
+- Read-back verification
 
-docs/
+Save new:
 
-README.md
+train.pgn
 
-architecture.md
+validation.pgn
 
-roadmap.md
+test.pgn
 
-4.
+====================================================
+Phase 2 – Sample Generation
+====================================================
 
-Ensure source code stays inside:
+Regenerate everything.
 
-src/
+Count samples.
 
-5.
+Regenerate board encodings.
 
-Keep datasets inside:
+Regenerate move encodings.
 
-data/
+Verify:
 
-6.
+(18,8,8)
 
-Keep trained models inside:
+4272 classes
 
-models/
+Promotion mapping
 
-7.
+Round-trip decoding
 
-Remove:
+Run all verification scripts again.
 
-temporary files
+====================================================
+Phase 3 – Training
+====================================================
 
-duplicate reports
+DO NOT continue training from the previous checkpoint.
 
-cache files
+Train a completely new model from scratch using the expanded dataset.
 
-unused scripts
+Reuse:
 
-8.
+- chess_model.py
+- train.py
 
-Verify imports still work.
+unless improvements are clearly beneficial.
 
-9.
+Use:
+
+CrossEntropyLoss
+
+Adam
+
+CUDA
+
+Checkpoint saving
+
+Validation
+
+Best model tracking
+
+Training summary
+
+====================================================
+Training Improvements
+====================================================
+
+If safe to implement without breaking compatibility:
+
+- Early stopping
+- Learning-rate scheduler
+- Mixed precision (AMP)
+- Better logging
+
+Otherwise leave the training pipeline unchanged.
+
+====================================================
+Verification
+====================================================
+
+Run all existing tests.
+
+Verify:
+
+Dataset
+
+Encoding
+
+Training
+
+Inference compatibility
+
+====================================================
+Evaluation
+====================================================
+
+Run evaluate.py on the new model.
+
+Generate:
+
+Top-1
+
+Top-3
+
+Top-5
+
+Top-10
+
+Opening
+
+Middlegame
+
+Endgame
+
+Inference speed
+
+Compare these metrics against the previous model.
+
+====================================================
+Model Comparison
+====================================================
+
+Create comparison_report.md.
+
+Compare:
+
+Previous model
+
+vs
+
+New model
+
+Include:
+
+Dataset size
+
+Training samples
+
+Training time
+
+Validation loss
+
+Validation accuracy
+
+Top-1
+
+Top-3
+
+Top-5
+
+Top-10
+
+Inference speed
+
+Strengths
+
+Weaknesses
+
+State clearly whether the new model is an improvement.
+
+====================================================
+Model Management
+====================================================
+
+Do NOT overwrite the previous model.
+
+Keep:
+
+models/archive/
+
+Archive the previous:
+
+best_model.pth
+
+last_model.pth
+
+training_summary.txt
+
+checkpoint_info.txt
+
+Create a timestamped archive.
+
+Store the new model separately.
+
+====================================================
+Final Deliverables
+====================================================
 
 Produce:
 
-repository_structure.md
+- Updated dataset report
+- Updated Phase 1 report
+- Updated Phase 2 report
+- Updated Phase 3 report
+- Updated evaluation report
+- comparison_report.md
 
-showing the final folder tree.
+Finally provide a complete summary including:
 
-Do not modify AI functionality.
+- New dataset size
+- New sample count
+- Training duration
+- Best epoch
+- Best validation loss
+- Final validation accuracy
+- Top-1 / Top-3 / Top-5 / Top-10 accuracy
+- Whether the new model outperformed the previous one
 
-Do not retrain.
+Work incrementally.
 
-Do not rename public APIs.
+After each major stage, verify correctness before proceeding to the next stage.
 
-Only improve repository organization.
-
-
+Do not change the public APIs or project structure unless absolutely necessary.
