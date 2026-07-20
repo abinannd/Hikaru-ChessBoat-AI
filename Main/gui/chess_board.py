@@ -68,7 +68,7 @@ class ChessSquare(BoxLayout):
 class ChessBoard(FloatLayout):
     """Responsive 8x8 Chessboard Widget with Selection, Moves, and Status Reporting."""
 
-    def __init__(self, on_move_executed_callback=None, **kwargs):
+    def __init__(self, on_move_executed_callback=None, on_promotion_required_callback=None, **kwargs):
         super().__init__(**kwargs)
         
         # Expose properties for piece placement, highlights, and game logic
@@ -79,6 +79,7 @@ class ChessBoard(FloatLayout):
         self.highlighted_squares = []  # List of ChessSquare widgets currently highlighted as legal destinations
         self.chess_board_obj = None     # Holds the internal python-chess.Board() object (source of truth)
         self.on_move_executed = on_move_executed_callback # Callback fired when a move is successfully pushed
+        self.on_promotion_required = on_promotion_required_callback # Callback fired when human pawn promotion is detected
         self.disable_interaction = False # Flag to temporarily lock board clicks (e.g., during AI turns)
         
         # 8x8 Grid layout for squares
@@ -180,14 +181,26 @@ class ChessBoard(FloatLayout):
             from_square = chess.parse_square(self.selected_square.coordinate)
             to_square = chess.parse_square(square.coordinate)
             
-            # Create the python-chess Move
+            # Check if this move is a human pawn promotion (human pawns reaching 1st or 8th rank)
+            piece = self.chess_board_obj.piece_at(from_square)
+            is_promotion = False
+            if piece is not None and piece.piece_type == chess.PAWN:
+                to_rank = chess.square_rank(to_square)
+                if (piece.color == chess.WHITE and to_rank == 7) or (piece.color == chess.BLACK and to_rank == 0):
+                    is_promotion = True
+            
+            if is_promotion:
+                # Trigger promotion dialog callback instead of auto-promoting to Queen
+                if self.on_promotion_required:
+                    # Lock interaction and open modal popup via MainWindow
+                    self.disable_interaction = True
+                    self.on_promotion_required(from_square, to_square)
+                    return
+            
+            # Standard move execution (non-promotion)
             move = chess.Move(from_square, to_square)
             
-            # Handle default Queen promotion if the move is a promotion move
-            if chess.Move(from_square, to_square, promotion=chess.QUEEN) in self.chess_board_obj.legal_moves:
-                move = chess.Move(from_square, to_square, promotion=chess.QUEEN)
-                
-            # Generate the SAN string *before* pushing onto the board (required for correct state context)
+            # Generate the SAN string *before* pushing onto the board
             san_str = self.chess_board_obj.san(move)
             
             # Push it onto our board source of truth
@@ -240,7 +253,7 @@ class ChessBoard(FloatLayout):
         if not self.collide_point(*touch.pos):
             return super().on_touch_down(touch)
             
-        # Completely disable interaction and selection if disabled (AI turn) or game is finished
+        # Completely disable interaction and selection if disabled (AI turn / active promotion) or game finished
         if self.disable_interaction or (self.chess_board_obj is not None and self.chess_board_obj.is_game_over()):
             return True # Consume touch event to lock the board
             

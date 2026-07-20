@@ -16,6 +16,8 @@ from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.spinner import Spinner
+from kivy.uix.popup import Popup
+from kivy.uix.gridlayout import GridLayout
 from chess_board import ChessBoard
 
 # Import python-chess
@@ -57,6 +59,7 @@ class MainWindow(BoxLayout):
         self.ai_status = "AI Offline"
         self.move_history_list = [] # List storing all played moves in Standard Algebraic Notation (SAN)
         self.redo_stack = []        # Stack storing undone moves for redo capabilities
+        self.promotion_popup = None # References the active modal promotion selection popup
         
         # Color state configuration (Human is default White)
         self.human_color = chess.WHITE
@@ -90,7 +93,11 @@ class MainWindow(BoxLayout):
         )
         
         # Left side: Chess Board Area
-        self.chess_board = ChessBoard(on_move_executed_callback=self.on_move_executed_handler, size_hint_x=0.7)
+        self.chess_board = ChessBoard(
+            on_move_executed_callback=self.on_move_executed_handler, 
+            on_promotion_required_callback=self.show_promotion_dialog,
+            size_hint_x=0.7
+        )
         content_area.add_widget(self.chess_board)
 
         # Right side: Side Panel with game controls and move log
@@ -223,6 +230,11 @@ class MainWindow(BoxLayout):
 
     def start_new_game(self):
         """Begins a fresh chess match respecting side selection configuration."""
+        # Close any active promotion popups
+        if self.promotion_popup:
+            self.promotion_popup.dismiss()
+            self.promotion_popup = None
+
         # 1. Update player and AI colors
         self.set_player_side()
 
@@ -310,6 +322,104 @@ class MainWindow(BoxLayout):
         # Update final game status and button states
         self.update_game_status()
         self.update_button_states()
+
+    def show_promotion_dialog(self, from_square: int, to_square: int):
+        """Displays a modal popup allowing the human to choose a promotion piece."""
+        main_layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        
+        # Options grid containing buttons for Queen, Rook, Bishop, Knight
+        choices_grid = GridLayout(cols=2, spacing=8, size_hint_y=0.7)
+        options = [
+            ("Queen", chess.QUEEN),
+            ("Rook", chess.ROOK),
+            ("Bishop", chess.BISHOP),
+            ("Knight", chess.KNIGHT)
+        ]
+        
+        for name, piece_type in options:
+            btn = Button(text=name, font_size='16sp', bold=True)
+            # Bind choice selection to complete the promotion
+            btn.bind(on_release=lambda btn_instance, pt=piece_type: self.complete_promotion(from_square, to_square, pt))
+            choices_grid.add_widget(btn)
+            
+        main_layout.add_widget(choices_grid)
+        
+        # Cancel option to cancel selection safely
+        cancel_btn = Button(text="Cancel", font_size='14sp', size_hint_y=0.3, bold=True, background_color=[0.7, 0.2, 0.2, 1.0])
+        cancel_btn.bind(on_release=lambda instance: self.cancel_promotion())
+        main_layout.add_widget(cancel_btn)
+        
+        # Create and open the Popup
+        self.promotion_popup = Popup(
+            title="Pawn Promotion Select",
+            content=main_layout,
+            size_hint=(None, None),
+            size=(320, 240),
+            auto_dismiss=False  # Block board clicks until dismissed
+        )
+        self.promotion_popup.open()
+
+    def complete_promotion(self, from_square: int, to_square: int, piece_type: int):
+        """Executes the promotion move backend push, closes the dialog, and updates the game loop."""
+        # 1. Close and cleanup popup
+        if self.promotion_popup:
+            self.promotion_popup.dismiss()
+            self.promotion_popup = None
+            
+        board = self.chess_board.chess_board_obj
+        if board is None:
+            return
+            
+        # 2. Construct move with selected promotion piece
+        move = chess.Move(from_square, to_square, promotion=piece_type)
+        
+        # 3. Push and execute move
+        if move in board.legal_moves:
+            # Generate SAN string *before* pushing onto the board
+            san_str = board.san(move)
+            
+            # Clear redo stack
+            self.clear_redo_stack()
+            
+            # Push move
+            board.push(move)
+            
+            # Redraw board positions
+            self.chess_board.load_position(board)
+            
+            # Record move to SAN log
+            self.add_move_to_history(san_str)
+            
+            # Update status
+            self.update_game_status()
+            
+            # 4. Handle turn switches
+            self.chess_board.disable_interaction = not self.is_human_turn()
+            
+            if self.is_game_over():
+                self.update_button_states()
+                return
+                
+            if self.is_ai_turn():
+                self.execute_ai_move()
+            else:
+                self.update_button_states()
+        else:
+            # Re-enable interaction if somehow illegal
+            self.chess_board.disable_interaction = not self.is_human_turn()
+            self.update_button_states()
+
+    def cancel_promotion(self):
+        """Cancels the active promotion request, clears selection/highlights, and closes the dialog."""
+        if self.promotion_popup:
+            self.promotion_popup.dismiss()
+            self.promotion_popup = None
+            
+        # Re-enable standard interaction and clear highlights
+        self.chess_board.clear_selection_and_highlights()
+        self.chess_board.disable_interaction = not self.is_human_turn()
+        self.update_button_states()
+        print("Promotion cancelled.")
 
     def add_move_to_history(self, san_str: str):
         """Adds a new move to the PGN log list and triggers panel updates."""

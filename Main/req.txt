@@ -1,14 +1,14 @@
-Phase 9 – Step 3: AI Side Selection
+Phase 9 – Step 4: Promotion Dialog
 
 Objective
 
-Allow the player to choose whether to play as White or Black before a new game starts.
+Replace the temporary automatic Queen promotion with a user-selectable promotion dialog.
 
-The AI should automatically control the opposite side.
+Only the human player should choose a promotion piece.
 
-Reuse the existing AI integration and move execution pipeline.
+The AI may continue using automatic Queen promotion.
 
-Do NOT duplicate gameplay logic.
+Reuse the existing move execution pipeline.
 
 ────────────────────────────────────────────
 
@@ -16,14 +16,15 @@ IMPORTANT
 
 Reuse:
 
-• ChessInference
-• ChessBoard
 • python-chess.Board()
-• Existing AI move execution
-• Existing human move execution
+• ChessBoard.load_position()
+• Existing move execution
+• Existing AI integration
 
 Do NOT modify:
 
+• ChessInference
+• MovePrediction
 • inference.py
 • chess_model.py
 • board_encoder.py
@@ -33,97 +34,85 @@ Do NOT modify:
 
 ────────────────────────────────────────────
 
-Game Mode
+Human Promotion
 
-Support:
+When a human pawn reaches the promotion rank:
 
-✓ Human (White) vs AI (Black)
+Do NOT immediately execute the move.
 
-✓ AI (White) vs Human (Black)
+Instead:
 
-Store the current mode as:
+Display a modal popup dialog.
 
-self.human_color
+Allow the player to choose:
 
-self.ai_color
+• Queen
 
-Do NOT hardcode colors anywhere else.
+• Rook
 
-────────────────────────────────────────────
+• Bishop
 
-User Interface
+• Knight
 
-Add an AI Side selector.
-
-A simple Spinner, DropDown, or two Radio Buttons is acceptable.
-
-Options:
-
-• Play as White
-
-• Play as Black
-
-Changing the selection should affect the next New Game.
-
-Do NOT change the side in the middle of an active game.
+Use Kivy Popup or ModalView.
 
 ────────────────────────────────────────────
 
-New Game
+Dialog
 
-When a new game starts:
+Display four selectable piece options.
 
-Create a fresh python-chess.Board().
+The dialog should:
 
-Reset move history.
+• Block interaction with the board.
 
-Reset redo stack.
+• Close after a selection.
 
-Reset status.
-
-If AI is White:
-
-Immediately trigger the AI's first move.
-
-If Human is White:
-
-Wait for the user's first move.
+• Cancel safely if dismissed.
 
 ────────────────────────────────────────────
 
-Turn Logic
+Move Execution
 
-The AI should move only when:
+Once a piece is selected:
 
-board.turn == ai_color
+Construct:
 
-The human may interact only when:
+chess.Move(
+    from_square,
+    to_square,
+    promotion=<selected piece>
+)
 
-board.turn == human_color
+Validate the move.
 
-Prevent interaction during the AI's turn.
+Push to python-chess.
+
+Refresh using:
+
+load_position(board)
+
+Update:
+
+• Move history
+
+• Status
+
+• Undo stack
+
+• Redo stack
+
+Reuse the existing move execution pipeline.
 
 ────────────────────────────────────────────
 
-Status Bar
+AI Promotion
 
-Display:
+Keep the existing behavior.
 
-White to Move
+The AI should continue promoting to Queen automatically.
 
-Black to Move
-
-Include:
-
-Playing as White
-
-or
-
-Playing as Black
-
-Example:
-
-White to Move | Playing as Black | AI Thinking...
+Do NOT change the inference engine.
 
 ────────────────────────────────────────────
 
@@ -133,15 +122,13 @@ Create dedicated methods.
 
 Examples:
 
-set_player_side()
+show_promotion_dialog()
 
-start_new_game()
+complete_promotion()
 
-is_human_turn()
+cancel_promotion()
 
-is_ai_turn()
-
-Avoid scattering color checks throughout the code.
+Avoid embedding popup logic inside move execution.
 
 ────────────────────────────────────────────
 
@@ -149,23 +136,25 @@ Verification
 
 Verify:
 
-✓ Human as White works
+✓ Queen promotion
 
-✓ Human as Black works
+✓ Rook promotion
 
-✓ AI opens when playing White
+✓ Bishop promotion
 
-✓ Turn order correct
+✓ Knight promotion
 
-✓ Status updates correctly
+✓ AI promotion still works
 
-✓ Move history unaffected
+✓ Undo/Redo works
 
-✓ Undo/Redo still functions
+✓ Move history records SAN correctly
 
-✓ New Game respects side selection
+✓ Popup blocks interaction
 
-✓ No duplicated logic
+✓ Popup closes correctly
+
+✓ No duplicated move logic
 
 ────────────────────────────────────────────
 
@@ -173,15 +162,15 @@ Output
 
 Create:
 
-phase9_step3_verification.md
+phase9_step4_verification.md
 
 Include:
 
-• Side selection workflow
+• Dialog workflow
 
-• Turn management
+• Promotion execution
 
-• AI initialization
+• AI promotion behavior
 
 • GUI changes
 
@@ -193,12 +182,12 @@ Constraints
 
 Do NOT:
 
-• Change AI strength
+• Change AI inference
 
-• Modify the neural network
+• Modify neural network
 
-• Add multiplayer
+• Add animations
 
 • Change move generation
 
-Only add configurable player-side selection while reusing the existing gameplay architecture.
+Only replace automatic human promotion with a promotion selection dialog while keeping the existing backend architecture.
