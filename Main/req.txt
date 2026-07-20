@@ -1,14 +1,12 @@
-Phase 9 – Step 4: Promotion Dialog
+Phase 10 – Step 1: Smooth Move Animation
 
 Objective
 
-Replace the temporary automatic Queen promotion with a user-selectable promotion dialog.
+Introduce smooth piece movement animations for every completed move.
 
-Only the human player should choose a promotion piece.
+The animation should enhance the user experience without changing gameplay logic or AI behavior.
 
-The AI may continue using automatic Queen promotion.
-
-Reuse the existing move execution pipeline.
+Reuse the existing rendering pipeline.
 
 ────────────────────────────────────────────
 
@@ -18,6 +16,7 @@ Reuse:
 
 • python-chess.Board()
 • ChessBoard.load_position()
+• ChessPiece
 • Existing move execution
 • Existing AI integration
 
@@ -32,87 +31,137 @@ Do NOT modify:
 • train.py
 • evaluate.py
 
-────────────────────────────────────────────
-
-Human Promotion
-
-When a human pawn reaches the promotion rank:
-
-Do NOT immediately execute the move.
-
-Instead:
-
-Display a modal popup dialog.
-
-Allow the player to choose:
-
-• Queen
-
-• Rook
-
-• Bishop
-
-• Knight
-
-Use Kivy Popup or ModalView.
+Do NOT change any chess rules.
 
 ────────────────────────────────────────────
 
-Dialog
+Animation Requirements
 
-Display four selectable piece options.
+Animate every completed move.
 
-The dialog should:
+Applicable to:
 
-• Block interaction with the board.
+✓ Human moves
 
-• Close after a selection.
+✓ AI moves
 
-• Cancel safely if dismissed.
+✓ Captures
+
+✓ Castling
+
+✓ En passant
+
+✓ Promotion
+
+The board state must remain identical before and after the animation.
 
 ────────────────────────────────────────────
 
-Move Execution
+Animation Style
 
-Once a piece is selected:
+Instead of instantly redrawing the board:
 
-Construct:
+1.
 
-chess.Move(
-    from_square,
-    to_square,
-    promotion=<selected piece>
-)
+Identify:
 
-Validate the move.
+Start Square
 
-Push to python-chess.
+Destination Square
 
-Refresh using:
+2.
+
+Locate the moving ChessPiece widget.
+
+3.
+
+Animate its position smoothly from:
+
+Start
+
+↓
+
+Destination
+
+using Kivy's Animation class.
+
+Recommended duration:
+
+0.18–0.25 seconds
+
+Use an ease-in-out transition.
+
+────────────────────────────────────────────
+
+Captures
+
+If a capture occurs:
+
+Keep the captured piece visible until the animation completes.
+
+Then remove it during board refresh.
+
+Avoid pieces disappearing before contact.
+
+────────────────────────────────────────────
+
+Castling
+
+Animate:
+
+King
+
+Rook
+
+Sequentially or simultaneously.
+
+Both approaches are acceptable.
+
+────────────────────────────────────────────
+
+Promotion
+
+Animate:
+
+Pawn
+
+↓
+
+Promotion Square
+
+After the animation completes:
+
+Replace the pawn with the promoted piece.
+
+────────────────────────────────────────────
+
+Synchronization
+
+After animation completion:
+
+Call:
 
 load_position(board)
 
-Update:
+to rebuild widgets from the backend.
 
-• Move history
-
-• Status
-
-• Undo stack
-
-• Redo stack
-
-Reuse the existing move execution pipeline.
+Never manually edit board state during animation.
 
 ────────────────────────────────────────────
 
-AI Promotion
+Interaction Lock
 
-Keep the existing behavior.
+Disable interaction while an animation is running.
 
-The AI should continue promoting to Queen automatically.
+Prevent:
 
-Do NOT change the inference engine.
+• Multiple clicks
+
+• AI moves during animation
+
+• Undo/Redo during animation
+
+Re-enable interaction after completion.
 
 ────────────────────────────────────────────
 
@@ -122,13 +171,29 @@ Create dedicated methods.
 
 Examples:
 
-show_promotion_dialog()
+animate_move()
 
-complete_promotion()
+animate_capture()
 
-cancel_promotion()
+animate_castling()
 
-Avoid embedding popup logic inside move execution.
+animation_finished()
+
+Avoid embedding animation logic inside move execution.
+
+────────────────────────────────────────────
+
+Performance
+
+Animations should remain smooth on:
+
+• Windows desktop
+
+• Mid-range laptops
+
+• Future Android devices
+
+Avoid unnecessary widget creation during the animation.
 
 ────────────────────────────────────────────
 
@@ -136,25 +201,25 @@ Verification
 
 Verify:
 
-✓ Queen promotion
+✓ Human move animation
 
-✓ Rook promotion
+✓ AI move animation
 
-✓ Bishop promotion
+✓ Capture animation
 
-✓ Knight promotion
+✓ Castling animation
 
-✓ AI promotion still works
+✓ Promotion animation
 
-✓ Undo/Redo works
+✓ Board synchronized after animation
 
-✓ Move history records SAN correctly
+✓ Undo/Redo still works
 
-✓ Popup blocks interaction
+✓ Move history unaffected
 
-✓ Popup closes correctly
+✓ Interaction locked during animation
 
-✓ No duplicated move logic
+✓ No AI changes
 
 ────────────────────────────────────────────
 
@@ -162,17 +227,17 @@ Output
 
 Create:
 
-phase9_step4_verification.md
+phase10_step1_verification.md
 
 Include:
 
-• Dialog workflow
+• Animation architecture
 
-• Promotion execution
+• Synchronization workflow
 
-• AI promotion behavior
+• Interaction locking
 
-• GUI changes
+• Performance considerations
 
 • Verification checklist
 
@@ -182,12 +247,14 @@ Constraints
 
 Do NOT:
 
+• Change chess rules
+
 • Change AI inference
 
-• Modify neural network
+• Add sound effects
 
-• Add animations
+• Add particle effects
 
-• Change move generation
+• Modify game state manually
 
-Only replace automatic human promotion with a promotion selection dialog while keeping the existing backend architecture.
+Only implement smooth piece movement animations while keeping the backend synchronized through python-chess.

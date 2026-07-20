@@ -60,6 +60,7 @@ class MainWindow(BoxLayout):
         self.move_history_list = [] # List storing all played moves in Standard Algebraic Notation (SAN)
         self.redo_stack = []        # Stack storing undone moves for redo capabilities
         self.promotion_popup = None # References the active modal promotion selection popup
+        self.is_animating = False   # Flag to track active piece animation loops
         
         # Color state configuration (Human is default White)
         self.human_color = chess.WHITE
@@ -96,6 +97,7 @@ class MainWindow(BoxLayout):
         self.chess_board = ChessBoard(
             on_move_executed_callback=self.on_move_executed_handler, 
             on_promotion_required_callback=self.show_promotion_dialog,
+            on_move_started_callback=self.on_move_started_handler,
             size_hint_x=0.7
         )
         content_area.add_widget(self.chess_board)
@@ -164,15 +166,15 @@ class MainWindow(BoxLayout):
         side_panel.add_widget(self.side_spinner)
         
         # Game reset button
-        new_game_btn = Button(
+        self.new_game_btn = Button(
             text="New Game",
             size_hint_y=None,
             height=45,
             bold=True,
             background_color=[0.2, 0.6, 0.3, 1.0] # Soft green button
         )
-        new_game_btn.bind(on_press=lambda instance: self.start_new_game())
-        side_panel.add_widget(new_game_btn)
+        self.new_game_btn.bind(on_press=lambda instance: self.start_new_game())
+        side_panel.add_widget(self.new_game_btn)
 
         # Undo and Redo control row
         control_row = BoxLayout(
@@ -230,6 +232,9 @@ class MainWindow(BoxLayout):
 
     def start_new_game(self):
         """Begins a fresh chess match respecting side selection configuration."""
+        if self.is_animating:
+            return  # Prevent resetting during animation
+
         # Close any active promotion popups
         if self.promotion_popup:
             self.promotion_popup.dismiss()
@@ -252,6 +257,11 @@ class MainWindow(BoxLayout):
         if self.is_ai_turn():
             self.execute_ai_move()
 
+    def on_move_started_handler(self):
+        """Callback invoked when a board movement animation begins. Disables all buttons."""
+        self.is_animating = True
+        self.update_button_states()
+
     def on_move_executed_handler(self, move: chess.Move, san_str: str):
         """Called automatically after a human move is completed on the board. Coordinates history and AI."""
         # A new move has been made; clear the redo stack
@@ -260,16 +270,26 @@ class MainWindow(BoxLayout):
         # 1. Record move to SAN log
         self.add_move_to_history(san_str)
         
-        # 2. Lock board click interactions during turn switches
+        # 2. Update board model state
+        board = self.chess_board.chess_board_obj
+        board.push(move)
+        
+        # Redraw board positions deterministically (clears animated instances)
+        self.chess_board.load_position(board)
+        
+        # 3. Reset animation status
+        self.is_animating = False
+        
+        # 4. Lock board click interactions during turn switches
         self.chess_board.disable_interaction = not self.is_human_turn()
         self.update_game_status()
         
-        # 3. Check if the game has ended
+        # 5. Check if the game has ended
         if self.is_game_over():
             self.update_button_states()
             return
             
-        # 4. Check if it is the AI's turn (AI is Black, human is White)
+        # 6. Check if it is the AI's turn (AI is Black, human is White)
         if self.is_ai_turn():
             self.execute_ai_move()
         else:
@@ -285,6 +305,8 @@ class MainWindow(BoxLayout):
 
         # Disable user interactions on board during calculation
         self.chess_board.disable_interaction = True
+        self.is_animating = True
+        self.update_button_states()
         
         # Display thinking status
         player_side = "Playing as White" if self.human_color == chess.WHITE else "Playing as Black"
@@ -298,28 +320,42 @@ class MainWindow(BoxLayout):
             # Validate prediction move
             move = prediction.move
             if move is not None and move in board.legal_moves:
-                # Generate SAN string *before* pushing onto the board
-                san_str = board.san(move)
-                # Push AI move to board
-                board.push(move)
-                # Redraw positions using standard layout update
-                self.chess_board.load_position(board)
-                # Record move to SAN log
-                self.add_move_to_history(san_str)
-                print(f"AI Move Executed: {prediction.uci} (Score: {prediction.logit:.4f})")
+                # Trigger AI move animation, defer push/redraw on complete callback
+                self.chess_board.animate_move(move, lambda: self.finish_ai_move_execution(move, prediction))
             else:
                 err_msg = f"AI predicted illegal/None move: {prediction.uci if prediction else 'None'}"
                 print(f"Error: {err_msg}")
                 self.ai_status = "AI Error: Illegal move"
+                self.is_animating = False
+                self.chess_board.disable_interaction = not self.is_human_turn()
+                self.update_game_status()
+                self.update_button_states()
         except Exception as e:
             err_msg = f"AI inference error: {e}"
             print(f"Error: {err_msg}")
             self.ai_status = f"AI Error: Prediction failed"
+            self.is_animating = False
+            self.chess_board.disable_interaction = not self.is_human_turn()
+            self.update_game_status()
+            self.update_button_states()
+
+    def finish_ai_move_execution(self, move: chess.Move, prediction):
+        """Pushes AI move on backend, refreshes positions, logs SAN, and restores locks."""
+        board = self.chess_board.chess_board_obj
+        if board is not None:
+            # Generate SAN string *before* pushing onto the board
+            san_str = board.san(move)
+            # Push AI move to board
+            board.push(move)
+            # Redraw positions using standard layout update
+            self.chess_board.load_position(board)
+            # Record move to SAN log
+            self.add_move_to_history(san_str)
+            print(f"AI Move Executed: {prediction.uci} (Score: {prediction.logit:.4f})")
             
-        # Re-enable user interaction if it becomes the Human's turn
+        # Reset animation flag and restore locks
+        self.is_animating = False
         self.chess_board.disable_interaction = not self.is_human_turn()
-        
-        # Update final game status and button states
         self.update_game_status()
         self.update_button_states()
 
@@ -373,40 +409,33 @@ class MainWindow(BoxLayout):
         # 2. Construct move with selected promotion piece
         move = chess.Move(from_square, to_square, promotion=piece_type)
         
-        # 3. Push and execute move
-        if move in board.legal_moves:
-            # Generate SAN string *before* pushing onto the board
+        # 3. Trigger move started callback to lock interaction
+        self.on_move_started_handler()
+        
+        # 4. Trigger promotion slide animation
+        self.chess_board.animate_move(move, lambda: self.finish_promotion_execution(move))
+
+    def finish_promotion_execution(self, move: chess.Move):
+        """Completes the promotion move pushing, redraws board, and shifts turns."""
+        board = self.chess_board.chess_board_obj
+        if board is not None:
             san_str = board.san(move)
-            
-            # Clear redo stack
             self.clear_redo_stack()
-            
-            # Push move
             board.push(move)
-            
-            # Redraw board positions
             self.chess_board.load_position(board)
-            
-            # Record move to SAN log
             self.add_move_to_history(san_str)
-            
-            # Update status
             self.update_game_status()
             
-            # 4. Handle turn switches
-            self.chess_board.disable_interaction = not self.is_human_turn()
+        self.is_animating = False
+        self.chess_board.disable_interaction = not self.is_human_turn()
+        
+        if self.is_game_over():
+            self.update_button_states()
+            return
             
-            if self.is_game_over():
-                self.update_button_states()
-                return
-                
-            if self.is_ai_turn():
-                self.execute_ai_move()
-            else:
-                self.update_button_states()
+        if self.is_ai_turn():
+            self.execute_ai_move()
         else:
-            # Re-enable interaction if somehow illegal
-            self.chess_board.disable_interaction = not self.is_human_turn()
             self.update_button_states()
 
     def cancel_promotion(self):
@@ -450,7 +479,7 @@ class MainWindow(BoxLayout):
 
     def undo_move(self):
         """Undoes the latest move(s) and refreshes the GUI."""
-        if not self.can_undo():
+        if not self.can_undo() or self.is_animating:
             return
             
         board = self.chess_board.chess_board_obj
@@ -487,7 +516,7 @@ class MainWindow(BoxLayout):
 
     def redo_move(self):
         """Redoes the undone move(s) and refreshes the GUI."""
-        if not self.can_redo():
+        if not self.can_redo() or self.is_animating:
             return
             
         board = self.chess_board.chess_board_obj
@@ -527,6 +556,8 @@ class MainWindow(BoxLayout):
 
     def can_undo(self) -> bool:
         """Returns True if the board state allows an undo action."""
+        if self.is_animating:
+            return False
         board = self.chess_board.chess_board_obj
         if board is None:
             return False
@@ -538,6 +569,8 @@ class MainWindow(BoxLayout):
 
     def can_redo(self) -> bool:
         """Returns True if the redo stack contains moves that can be reapplied."""
+        if self.is_animating:
+            return False
         if self.ai_engine is not None:
             return len(self.redo_stack) >= 2
         else:
@@ -549,9 +582,16 @@ class MainWindow(BoxLayout):
         self.update_button_states()
 
     def update_button_states(self):
-        """Enables or disables Undo/Redo buttons based on availability of moves."""
-        self.undo_btn.disabled = not self.can_undo()
-        self.redo_btn.disabled = not self.can_redo()
+        """Enables or disables Undo/Redo/New Game buttons based on state."""
+        # Disable all controls during active movement animation
+        if self.is_animating:
+            self.undo_btn.disabled = True
+            self.redo_btn.disabled = True
+            self.new_game_btn.disabled = True
+        else:
+            self.undo_btn.disabled = not self.can_undo()
+            self.redo_btn.disabled = not self.can_redo()
+            self.new_game_btn.disabled = False
 
     def is_human_turn(self) -> bool:
         """Returns True if the current turn belongs to the human player."""

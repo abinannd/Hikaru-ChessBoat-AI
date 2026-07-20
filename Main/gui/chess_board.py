@@ -10,6 +10,7 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.boxlayout import BoxLayout
 from kivy.graphics import Color, Rectangle
+from kivy.animation import Animation
 
 # Import python-chess and our custom ChessPiece widget
 import chess
@@ -66,9 +67,9 @@ class ChessSquare(BoxLayout):
         self.canvas_color.rgba = self.square_color
 
 class ChessBoard(FloatLayout):
-    """Responsive 8x8 Chessboard Widget with Selection, Moves, and Status Reporting."""
+    """Responsive 8x8 Chessboard Widget with Piece Animations."""
 
-    def __init__(self, on_move_executed_callback=None, on_promotion_required_callback=None, **kwargs):
+    def __init__(self, on_move_executed_callback=None, on_promotion_required_callback=None, on_move_started_callback=None, **kwargs):
         super().__init__(**kwargs)
         
         # Expose properties for piece placement, highlights, and game logic
@@ -80,7 +81,9 @@ class ChessBoard(FloatLayout):
         self.chess_board_obj = None     # Holds the internal python-chess.Board() object (source of truth)
         self.on_move_executed = on_move_executed_callback # Callback fired when a move is successfully pushed
         self.on_promotion_required = on_promotion_required_callback # Callback fired when human pawn promotion is detected
-        self.disable_interaction = False # Flag to temporarily lock board clicks (e.g., during AI turns)
+        self.on_move_started = on_move_started_callback # Callback fired when a move animation starts
+        self.disable_interaction = False # Flag to temporarily lock board clicks (e.g., during AI turns / animations)
+        self.active_animations = 0     # Counter of concurrently running animations
         
         # 8x8 Grid layout for squares
         self.board_grid = GridLayout(cols=8, rows=8, size_hint=(None, None))
@@ -192,7 +195,6 @@ class ChessBoard(FloatLayout):
             if is_promotion:
                 # Trigger promotion dialog callback instead of auto-promoting to Queen
                 if self.on_promotion_required:
-                    # Lock interaction and open modal popup via MainWindow
                     self.disable_interaction = True
                     self.on_promotion_required(from_square, to_square)
                     return
@@ -203,15 +205,11 @@ class ChessBoard(FloatLayout):
             # Generate the SAN string *before* pushing onto the board
             san_str = self.chess_board_obj.san(move)
             
-            # Push it onto our board source of truth
-            self.chess_board_obj.push(move)
-            
-            # Redraw the board using load_position() (automatically clears selection/highlights)
-            self.load_position(self.chess_board_obj)
-            
-            # Fire the move execution callback passing the Move and its SAN string
+            # Trigger the animation first! Defer the actual push and history update
             if self.on_move_executed:
-                self.on_move_executed(move, san_str)
+                if self.on_move_started:
+                    self.on_move_started()
+                self.animate_move(move, lambda: self.on_move_executed(move, san_str))
             return
 
         # 3. If we clicked an illegal square (or another piece), update selection normally
@@ -242,6 +240,104 @@ class ChessBoard(FloatLayout):
                             dest_square_widget.show_legal_move()
                             self.highlighted_squares.append(dest_square_widget)
 
+    def animate_move(self, move: chess.Move, on_complete_callback):
+        """Locates the moving piece(s) and animates them using Kivy Animation class."""
+        self.disable_interaction = True
+        
+        # 1. Resolve source and destination coordinates
+        files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+        from_coord = f"{files[chess.square_file(move.from_square)]}{chess.square_rank(move.from_square) + 1}"
+        to_coord = f"{files[chess.square_file(move.to_square)]}{chess.square_rank(move.to_square) + 1}"
+        
+        start_square = self.squares.get(from_coord)
+        dest_square = self.squares.get(to_coord)
+        
+        if start_square is None or dest_square is None:
+            on_complete_callback()
+            return
+            
+        # 2. Locate the ChessPiece child widget inside the starting square layout
+        piece_widget = None
+        for child in start_square.children:
+            if isinstance(child, ChessPiece):
+                piece_widget = child
+                break
+                
+        if piece_widget is None:
+            on_complete_callback()
+            return
+
+        # 3. Check for castling moves (castling animates both King and Rook)
+        is_castling = self.chess_board_obj is not None and self.chess_board_obj.is_castling(move)
+        self.active_animations = 0
+        
+        # Callback fired when an individual piece animation finishes
+        def anim_callback(anim, widget):
+            self.active_animations -= 1
+            if self.active_animations == 0:
+                on_complete_callback()
+
+        if is_castling:
+            # Determine Rook source and destination squares
+            if move.to_square == chess.G1:     # White Kingside
+                rook_from, rook_to = chess.H1, chess.F1
+            elif move.to_square == chess.C1:   # White Queenside
+                rook_from, rook_to = chess.A1, chess.D1
+            elif move.to_square == chess.G8:   # Black Kingside
+                rook_from, rook_to = chess.H8, chess.F8
+            elif move.to_square == chess.C8:   # Black Queenside
+                rook_from, rook_to = chess.A8, chess.D8
+                
+            rook_from_coord = f"{files[chess.square_file(rook_from)]}{chess.square_rank(rook_from) + 1}"
+            rook_to_coord = f"{files[chess.square_file(rook_to)]}{chess.square_rank(rook_to) + 1}"
+            
+            rook_start = self.squares.get(rook_from_coord)
+            rook_dest = self.squares.get(rook_to_coord)
+            
+            # Locate rook piece
+            rook_widget = None
+            if rook_start:
+                for child in rook_start.children:
+                    if isinstance(child, ChessPiece):
+                        rook_widget = child
+                        break
+                        
+            # Trigger both animations simultaneously
+            self._animate_single_piece(piece_widget, start_square, dest_square, anim_callback)
+            if rook_widget and rook_start and rook_dest:
+                self._animate_single_piece(rook_widget, rook_start, rook_dest, anim_callback)
+        else:
+            # Normal moves (including captures and promotion translations)
+            self._animate_single_piece(piece_widget, start_square, dest_square, anim_callback)
+
+    def _animate_single_piece(self, piece_widget, start_square, dest_square, callback):
+        """Temporarily detaches the piece widget and slides it smoothly on the top FloatLayout layer."""
+        self.active_animations += 1
+        
+        # Capture absolute coordinates within the ChessBoard parent container
+        start_pos = start_square.pos
+        start_size = start_square.size
+        dest_pos = dest_square.pos
+        
+        # Remove from the starting grid cell BoxLayout to bypass layout overrides during pos slide
+        start_square.remove_widget(piece_widget)
+        
+        # Add directly to the top-level FloatLayout container (renders above the board)
+        self.add_widget(piece_widget)
+        piece_widget.size_hint = (None, None)
+        piece_widget.size = start_size
+        piece_widget.pos = start_pos
+        
+        # Animate smoothly from start to destination using Kivy Animation
+        anim = Animation(pos=dest_pos, duration=0.2, transition='in_out_quad')
+        anim.bind(on_complete=lambda a, w: self._cleanup_animated_piece(a, w, callback))
+        anim.start(piece_widget)
+
+    def _cleanup_animated_piece(self, anim, piece_widget, callback):
+        """Removes the animated piece widget from the FloatLayout container and fires the callback."""
+        self.remove_widget(piece_widget)
+        callback(anim, piece_widget)
+
     def reset_game(self):
         """Resets the backend board to standard setup and redraws the starting position."""
         new_board = chess.Board()
@@ -253,7 +349,7 @@ class ChessBoard(FloatLayout):
         if not self.collide_point(*touch.pos):
             return super().on_touch_down(touch)
             
-        # Completely disable interaction and selection if disabled (AI turn / active promotion) or game finished
+        # Completely disable interaction and selection if disabled (AI turn / animation / active promotion)
         if self.disable_interaction or (self.chess_board_obj is not None and self.chess_board_obj.is_game_over()):
             return True # Consume touch event to lock the board
             
