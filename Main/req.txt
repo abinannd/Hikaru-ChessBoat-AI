@@ -1,271 +1,196 @@
-Objective:
-Expand the supervised chess AI by incorporating additional PGN training data and rebuilding the entire supervised-learning pipeline while preserving the existing project architecture.
+Phase 9 – Step 2: Undo / Redo System
 
-IMPORTANT:
-Do NOT overwrite or delete the previous trained models or reports.
-Archive the previous outputs before generating new ones.
+Objective
 
-====================================================
-Phase 1 – Dataset Update
-====================================================
+Implement Undo and Redo functionality for both Human vs Human and Human vs AI games.
 
-1. Merge the existing PGN dataset with the newly supplied PGN file(s).
+Reuse the existing python-chess backend.
 
-2. Validate every game.
+Do NOT implement custom board state storage.
 
-3. Remove:
+────────────────────────────────────────────
 
-- Corrupted PGNs
-- Empty games
-- Games with fewer than 20 plies
-- Invalid move sequences
-
-4. Produce updated statistics:
-
-- Total games
-- Accepted games
-- Rejected games
-- Game result distribution
-- Ply statistics
-- Elo statistics
-- Duplicate game count (if detected)
-
-5. Save a new dataset report.
-
-====================================================
-Dataset Split
-====================================================
-
-Repeat the exact previous workflow.
-
-Shuffle using the fixed random seed.
-
-Generate:
-
-Train
-
-Validation
-
-Test
-
-using the same split ratio.
-
-Verify:
-
-- Counts
-- No overlap
-- Read-back verification
-
-Save new:
-
-train.pgn
-
-validation.pgn
-
-test.pgn
-
-====================================================
-Phase 2 – Sample Generation
-====================================================
-
-Regenerate everything.
-
-Count samples.
-
-Regenerate board encodings.
-
-Regenerate move encodings.
-
-Verify:
-
-(18,8,8)
-
-4272 classes
-
-Promotion mapping
-
-Round-trip decoding
-
-Run all verification scripts again.
-
-====================================================
-Phase 3 – Training
-====================================================
-
-DO NOT continue training from the previous checkpoint.
-
-Train a completely new model from scratch using the expanded dataset.
+IMPORTANT
 
 Reuse:
 
-- chess_model.py
-- train.py
+• python-chess.Board()
+• ChessBoard.load_position()
+• Move History Panel
+• Existing rendering pipeline
 
-unless improvements are clearly beneficial.
+Do NOT modify:
+
+• ChessInference
+• MovePrediction
+• board_encoder.py
+• move_encoder.py
+• chess_model.py
+• inference.py
+• train.py
+• evaluate.py
+
+────────────────────────────────────────────
+
+Undo
+
+Add an "Undo" button.
+
+When pressed:
+
+• If no moves exist:
+  Do nothing.
+
+• Human vs Human:
+  Undo one move.
+
+• Human vs AI:
+  Undo both the human move and the AI response together, restoring the position before the human's turn.
 
 Use:
 
-CrossEntropyLoss
+board.pop()
 
-Adam
+Never reconstruct the board manually.
 
-CUDA
+────────────────────────────────────────────
 
-Checkpoint saving
+Redo
 
-Validation
+Add a "Redo" button.
 
-Best model tracking
+Maintain a redo stack.
 
-Training summary
+When a move is undone:
 
-====================================================
-Training Improvements
-====================================================
+• Push it onto the redo stack.
 
-If safe to implement without breaking compatibility:
+When Redo is pressed:
 
-- Early stopping
-- Learning-rate scheduler
-- Mixed precision (AMP)
-- Better logging
+• Reapply the move(s) using python-chess.
 
-Otherwise leave the training pipeline unchanged.
+If the user makes a new move after Undo:
 
-====================================================
+• Clear the redo stack.
+
+────────────────────────────────────────────
+
+Move History
+
+Synchronize the move history panel.
+
+Undo removes the latest move(s).
+
+Redo restores them.
+
+Move numbering and SAN notation must remain correct.
+
+────────────────────────────────────────────
+
+GUI
+
+Add two buttons:
+
+Undo
+
+Redo
+
+Place them beside or below the existing New Game button.
+
+Buttons should disable automatically when no action is available.
+
+────────────────────────────────────────────
+
+Architecture
+
+Create dedicated methods.
+
+Examples:
+
+undo_move()
+
+redo_move()
+
+can_undo()
+
+can_redo()
+
+clear_redo_stack()
+
+Avoid embedding all logic into button callbacks.
+
+────────────────────────────────────────────
+
+Future Compatibility
+
+Design the implementation so it can later support:
+
+• PGN replay
+
+• Engine analysis
+
+• AI self-play
+
+• Save/Load games
+
+without redesign.
+
+────────────────────────────────────────────
+
 Verification
-====================================================
-
-Run all existing tests.
 
 Verify:
 
-Dataset
+✓ Undo works in Human vs Human
 
-Encoding
+✓ Undo works in Human vs AI
 
-Training
+✓ Redo restores moves
 
-Inference compatibility
+✓ Move history updates correctly
 
-====================================================
-Evaluation
-====================================================
+✓ Board redraws correctly
 
-Run evaluate.py on the new model.
+✓ New move clears redo stack
 
-Generate:
+✓ Buttons enable/disable correctly
 
-Top-1
+✓ AI remains synchronized
 
-Top-3
+✓ No duplicated board state
 
-Top-5
+────────────────────────────────────────────
 
-Top-10
+Output
 
-Opening
+Create:
 
-Middlegame
-
-Endgame
-
-Inference speed
-
-Compare these metrics against the previous model.
-
-====================================================
-Model Comparison
-====================================================
-
-Create comparison_report.md.
-
-Compare:
-
-Previous model
-
-vs
-
-New model
+phase9_step2_verification.md
 
 Include:
 
-Dataset size
+• Undo workflow
 
-Training samples
+• Redo workflow
 
-Training time
+• Synchronization strategy
 
-Validation loss
+• Move history updates
 
-Validation accuracy
+• Verification checklist
 
-Top-1
+────────────────────────────────────────────
 
-Top-3
+Constraints
 
-Top-5
+Do NOT:
 
-Top-10
+• Store screenshots
 
-Inference speed
+• Clone board states
 
-Strengths
+• Reimplement chess rules
 
-Weaknesses
+• Modify AI inference
 
-State clearly whether the new model is an improvement.
-
-====================================================
-Model Management
-====================================================
-
-Do NOT overwrite the previous model.
-
-Keep:
-
-models/archive/
-
-Archive the previous:
-
-best_model.pth
-
-last_model.pth
-
-training_summary.txt
-
-checkpoint_info.txt
-
-Create a timestamped archive.
-
-Store the new model separately.
-
-====================================================
-Final Deliverables
-====================================================
-
-Produce:
-
-- Updated dataset report
-- Updated Phase 1 report
-- Updated Phase 2 report
-- Updated Phase 3 report
-- Updated evaluation report
-- comparison_report.md
-
-Finally provide a complete summary including:
-
-- New dataset size
-- New sample count
-- Training duration
-- Best epoch
-- Best validation loss
-- Final validation accuracy
-- Top-1 / Top-3 / Top-5 / Top-10 accuracy
-- Whether the new model outperformed the previous one
-
-Work incrementally.
-
-After each major stage, verify correctness before proceeding to the next stage.
-
-Do not change the public APIs or project structure unless absolutely necessary.
+Only implement Undo/Redo by reusing python-chess and the existing rendering pipeline.

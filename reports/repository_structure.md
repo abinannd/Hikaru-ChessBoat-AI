@@ -10,7 +10,20 @@ Hikaru/
 ├── LICENSE
 ├── README.md                          # Root-level project introduction
 ├── Main/
-│   └── req.txt                        # System active requirements log
+│   ├── req.txt                        # System active requirements log
+│   └── gui/                           # Kivy GUI frontend
+│       ├── app.py                     # GUI entry point
+│       ├── main_window.py             # Root vertical window (Header, Side panel, Status, AI move executor, Scrollable history & Undo/Redo controls)
+│       ├── chess_board.py             # Chess board widget (8x8 squares with selection, highlights, move execution, board lock & interaction lock)
+│       ├── chess_piece.py             # Chess piece widget (responsive unicode/image loader)
+│       ├── assets/                    # Static graphical assets
+│       │   ├── pieces/                # Chess pieces images (placeholder)
+│       │   ├── boards/                # Chess board images (placeholder)
+│       │   └── icons/                 # UI icons (placeholder)
+│       ├── screens/                   # UI screen placeholders
+│       ├── widgets/                   # Custom UI widget placeholders
+│       ├── themes/                    # Graphical theme settings
+│       └── utils/                     # UI math and coordinate helpers
 ├── data/                              # Datasets and preprocessing tools
 │   ├── splits/                        # Split datasets
 │   │   ├── train.pgn                  # Training split (4,837 games, 423,469 samples)
@@ -62,9 +75,20 @@ Hikaru/
 │   ├── evaluation_report.md           # Detailed benchmark results
 │   ├── evaluation_summary.txt         # Plaintext benchmark summary
 │   ├── comparison_report.md           # Model playing strength comparison report
+│   ├── phase7_step1_verification.md   # Kivy GUI layout verification report
+│   ├── phase7_step2_verification.md   # Responsive Chessboard rendering report
+│   ├── phase7_step3_piece_rendering.md# Chess piece rendering verification report
+│   ├── phase7_step4_verification.md   # User interaction & piece selection report
+│   ├── phase7_step5_verification.md   # Legal move highlighting report
+│   ├── phase7_step6_verification.md   # Human move execution report
+│   ├── phase7_step7_verification.md   # Game state management report
+│   ├── phase8_step1_verification.md   # Chess AI engine integration report
+│   ├── phase8_step2_verification.md   # Human vs AI gameplay loop report
+│   ├── phase9_step1_verification.md   # Move history panel (SAN/PGN) report
+│   ├── phase9_step2_verification.md   # Undo / Redo system report
 │   ├── step_4_verification_report.md  # Inference unit tests
 │   ├── step_5_verification_report.md  # Decode unit tests
-│   ├── step_6_verification_report.md  # Legality unit tests
+│   ├── step_6_verification_report.md  # Legal move check unit tests
 │   ├── step_7_verification_report.md  # API pipeline unit tests
 │   ├── step_8_verification_report.md  # Console game loop verification
 │   └── archive/                       # Archive of previous reports
