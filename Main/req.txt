@@ -1,12 +1,14 @@
-Phase 9 – Step 2: Undo / Redo System
+Phase 9 – Step 3: AI Side Selection
 
 Objective
 
-Implement Undo and Redo functionality for both Human vs Human and Human vs AI games.
+Allow the player to choose whether to play as White or Black before a new game starts.
 
-Reuse the existing python-chess backend.
+The AI should automatically control the opposite side.
 
-Do NOT implement custom board state storage.
+Reuse the existing AI integration and move execution pipeline.
+
+Do NOT duplicate gameplay logic.
 
 ────────────────────────────────────────────
 
@@ -14,90 +16,114 @@ IMPORTANT
 
 Reuse:
 
+• ChessInference
+• ChessBoard
 • python-chess.Board()
-• ChessBoard.load_position()
-• Move History Panel
-• Existing rendering pipeline
+• Existing AI move execution
+• Existing human move execution
 
 Do NOT modify:
 
-• ChessInference
-• MovePrediction
+• inference.py
+• chess_model.py
 • board_encoder.py
 • move_encoder.py
-• chess_model.py
-• inference.py
 • train.py
 • evaluate.py
 
 ────────────────────────────────────────────
 
-Undo
+Game Mode
 
-Add an "Undo" button.
+Support:
 
-When pressed:
+✓ Human (White) vs AI (Black)
 
-• If no moves exist:
-  Do nothing.
+✓ AI (White) vs Human (Black)
 
-• Human vs Human:
-  Undo one move.
+Store the current mode as:
 
-• Human vs AI:
-  Undo both the human move and the AI response together, restoring the position before the human's turn.
+self.human_color
 
-Use:
+self.ai_color
 
-board.pop()
-
-Never reconstruct the board manually.
+Do NOT hardcode colors anywhere else.
 
 ────────────────────────────────────────────
 
-Redo
+User Interface
 
-Add a "Redo" button.
+Add an AI Side selector.
 
-Maintain a redo stack.
+A simple Spinner, DropDown, or two Radio Buttons is acceptable.
 
-When a move is undone:
+Options:
 
-• Push it onto the redo stack.
+• Play as White
 
-When Redo is pressed:
+• Play as Black
 
-• Reapply the move(s) using python-chess.
+Changing the selection should affect the next New Game.
 
-If the user makes a new move after Undo:
-
-• Clear the redo stack.
+Do NOT change the side in the middle of an active game.
 
 ────────────────────────────────────────────
 
-Move History
+New Game
 
-Synchronize the move history panel.
+When a new game starts:
 
-Undo removes the latest move(s).
+Create a fresh python-chess.Board().
 
-Redo restores them.
+Reset move history.
 
-Move numbering and SAN notation must remain correct.
+Reset redo stack.
+
+Reset status.
+
+If AI is White:
+
+Immediately trigger the AI's first move.
+
+If Human is White:
+
+Wait for the user's first move.
 
 ────────────────────────────────────────────
 
-GUI
+Turn Logic
 
-Add two buttons:
+The AI should move only when:
 
-Undo
+board.turn == ai_color
 
-Redo
+The human may interact only when:
 
-Place them beside or below the existing New Game button.
+board.turn == human_color
 
-Buttons should disable automatically when no action is available.
+Prevent interaction during the AI's turn.
+
+────────────────────────────────────────────
+
+Status Bar
+
+Display:
+
+White to Move
+
+Black to Move
+
+Include:
+
+Playing as White
+
+or
+
+Playing as Black
+
+Example:
+
+White to Move | Playing as Black | AI Thinking...
 
 ────────────────────────────────────────────
 
@@ -107,33 +133,15 @@ Create dedicated methods.
 
 Examples:
 
-undo_move()
+set_player_side()
 
-redo_move()
+start_new_game()
 
-can_undo()
+is_human_turn()
 
-can_redo()
+is_ai_turn()
 
-clear_redo_stack()
-
-Avoid embedding all logic into button callbacks.
-
-────────────────────────────────────────────
-
-Future Compatibility
-
-Design the implementation so it can later support:
-
-• PGN replay
-
-• Engine analysis
-
-• AI self-play
-
-• Save/Load games
-
-without redesign.
+Avoid scattering color checks throughout the code.
 
 ────────────────────────────────────────────
 
@@ -141,23 +149,23 @@ Verification
 
 Verify:
 
-✓ Undo works in Human vs Human
+✓ Human as White works
 
-✓ Undo works in Human vs AI
+✓ Human as Black works
 
-✓ Redo restores moves
+✓ AI opens when playing White
 
-✓ Move history updates correctly
+✓ Turn order correct
 
-✓ Board redraws correctly
+✓ Status updates correctly
 
-✓ New move clears redo stack
+✓ Move history unaffected
 
-✓ Buttons enable/disable correctly
+✓ Undo/Redo still functions
 
-✓ AI remains synchronized
+✓ New Game respects side selection
 
-✓ No duplicated board state
+✓ No duplicated logic
 
 ────────────────────────────────────────────
 
@@ -165,17 +173,17 @@ Output
 
 Create:
 
-phase9_step2_verification.md
+phase9_step3_verification.md
 
 Include:
 
-• Undo workflow
+• Side selection workflow
 
-• Redo workflow
+• Turn management
 
-• Synchronization strategy
+• AI initialization
 
-• Move history updates
+• GUI changes
 
 • Verification checklist
 
@@ -185,12 +193,12 @@ Constraints
 
 Do NOT:
 
-• Store screenshots
+• Change AI strength
 
-• Clone board states
+• Modify the neural network
 
-• Reimplement chess rules
+• Add multiplayer
 
-• Modify AI inference
+• Change move generation
 
-Only implement Undo/Redo by reusing python-chess and the existing rendering pipeline.
+Only add configurable player-side selection while reusing the existing gameplay architecture.

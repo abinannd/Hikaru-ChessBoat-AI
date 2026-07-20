@@ -13,7 +13,7 @@ Hikaru/
 │   ├── req.txt                        # System active requirements log
 │   └── gui/                           # Kivy GUI frontend
 │       ├── app.py                     # GUI entry point
-│       ├── main_window.py             # Root vertical window (Header, Side panel, Status, AI move executor, Scrollable history & Undo/Redo controls)
+│       ├── main_window.py             # Root vertical window (Header, Side panel, Status, AI move executor, Scrollable history, Undo/Redo & Side selection Spinner)
 │       ├── chess_board.py             # Chess board widget (8x8 squares with selection, highlights, move execution, board lock & interaction lock)
 │       ├── chess_piece.py             # Chess piece widget (responsive unicode/image loader)
 │       ├── assets/                    # Static graphical assets
@@ -86,6 +86,7 @@ Hikaru/
 │   ├── phase8_step2_verification.md   # Human vs AI gameplay loop report
 │   ├── phase9_step1_verification.md   # Move history panel (SAN/PGN) report
 │   ├── phase9_step2_verification.md   # Undo / Redo system report
+│   ├── phase9_step3_verification.md   # AI Side selection report
 │   ├── step_4_verification_report.md  # Inference unit tests
 │   ├── step_5_verification_report.md  # Decode unit tests
 │   ├── step_6_verification_report.md  # Legal move check unit tests

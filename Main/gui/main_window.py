@@ -15,6 +15,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.scrollview import ScrollView
+from kivy.uix.spinner import Spinner
 from chess_board import ChessBoard
 
 # Import python-chess
@@ -56,6 +57,10 @@ class MainWindow(BoxLayout):
         self.ai_status = "AI Offline"
         self.move_history_list = [] # List storing all played moves in Standard Algebraic Notation (SAN)
         self.redo_stack = []        # Stack storing undone moves for redo capabilities
+        
+        # Color state configuration (Human is default White)
+        self.human_color = chess.WHITE
+        self.ai_color = chess.BLACK
         
         try:
             from src.inference import ChessInference
@@ -134,6 +139,23 @@ class MainWindow(BoxLayout):
             valign='middle'
         ))
         
+        # Spinner side selection (affects next New Game start)
+        side_panel.add_widget(Label(
+            text="Select Player Side:",
+            font_size='14sp',
+            bold=True,
+            size_hint_y=None,
+            height=20
+        ))
+        self.side_spinner = Spinner(
+            text="Play as White",
+            values=("Play as White", "Play as Black"),
+            size_hint_y=None,
+            height=40,
+            background_color=[0.1, 0.4, 0.6, 1.0] # Soft blue spinner
+        )
+        side_panel.add_widget(self.side_spinner)
+        
         # Game reset button
         new_game_btn = Button(
             text="New Game",
@@ -142,7 +164,7 @@ class MainWindow(BoxLayout):
             bold=True,
             background_color=[0.2, 0.6, 0.3, 1.0] # Soft green button
         )
-        new_game_btn.bind(on_press=lambda instance: self.reset_game())
+        new_game_btn.bind(on_press=lambda instance: self.start_new_game())
         side_panel.add_widget(new_game_btn)
 
         # Undo and Redo control row
@@ -188,7 +210,35 @@ class MainWindow(BoxLayout):
         self.add_widget(self.status_bar)
 
         # 4. Load the starting position
-        self.reset_game()
+        self.start_new_game()
+
+    def set_player_side(self):
+        """Sets the player and AI colors based on the spinner's active choice."""
+        if self.side_spinner.text == "Play as White":
+            self.human_color = chess.WHITE
+            self.ai_color = chess.BLACK
+        else:
+            self.human_color = chess.BLACK
+            self.ai_color = chess.WHITE
+
+    def start_new_game(self):
+        """Begins a fresh chess match respecting side selection configuration."""
+        # 1. Update player and AI colors
+        self.set_player_side()
+
+        # 2. Reset board and history logs
+        self.chess_board.reset_game()
+        self.clear_history()
+        self.clear_redo_stack()
+        
+        # 3. Lock board click interactions if it is currently the AI's turn
+        self.chess_board.disable_interaction = not self.is_human_turn()
+        self.update_game_status()
+        self.update_button_states()
+
+        # 4. If AI plays first (AI is White), immediately trigger its turn
+        if self.is_ai_turn():
+            self.execute_ai_move()
 
     def on_move_executed_handler(self, move: chess.Move, san_str: str):
         """Called automatically after a human move is completed on the board. Coordinates history and AI."""
@@ -198,7 +248,8 @@ class MainWindow(BoxLayout):
         # 1. Record move to SAN log
         self.add_move_to_history(san_str)
         
-        # 2. Update status bar
+        # 2. Lock board click interactions during turn switches
+        self.chess_board.disable_interaction = not self.is_human_turn()
         self.update_game_status()
         
         # 3. Check if the game has ended
@@ -207,8 +258,7 @@ class MainWindow(BoxLayout):
             return
             
         # 4. Check if it is the AI's turn (AI is Black, human is White)
-        board = self.chess_board.chess_board_obj
-        if board is not None and board.turn == chess.BLACK:
+        if self.is_ai_turn():
             self.execute_ai_move()
         else:
             self.update_button_states()
@@ -217,6 +267,7 @@ class MainWindow(BoxLayout):
         """Triggers the Chess AI engine to predict and play Black's move."""
         if self.ai_engine is None:
             print("AI Engine not loaded. Continuing in Human-vs-Human mode.")
+            self.chess_board.disable_interaction = False
             self.update_button_states()
             return
 
@@ -224,7 +275,8 @@ class MainWindow(BoxLayout):
         self.chess_board.disable_interaction = True
         
         # Display thinking status
-        self.status_bar.text = f"AI Thinking... | {self.ai_status}"
+        player_side = "Playing as White" if self.human_color == chess.WHITE else "Playing as Black"
+        self.status_bar.text = f"AI Thinking... | {player_side} | {self.ai_status}"
         
         try:
             board = self.chess_board.chess_board_obj
@@ -252,8 +304,8 @@ class MainWindow(BoxLayout):
             print(f"Error: {err_msg}")
             self.ai_status = f"AI Error: Prediction failed"
             
-        # Re-enable user interaction
-        self.chess_board.disable_interaction = False
+        # Re-enable user interaction if it becomes the Human's turn
+        self.chess_board.disable_interaction = not self.is_human_turn()
         
         # Update final game status and button states
         self.update_game_status()
@@ -318,6 +370,7 @@ class MainWindow(BoxLayout):
         # Re-render board and refresh history displays
         self.chess_board.load_position(board)
         self.refresh_history_panel()
+        self.chess_board.disable_interaction = not self.is_human_turn()
         self.update_game_status()
         self.update_button_states()
         print("Undo executed successfully.")
@@ -357,6 +410,7 @@ class MainWindow(BoxLayout):
         # Re-render board and refresh displays
         self.chess_board.load_position(board)
         self.refresh_history_panel()
+        self.chess_board.disable_interaction = not self.is_human_turn()
         self.update_game_status()
         self.update_button_states()
         print("Redo executed successfully.")
@@ -389,6 +443,20 @@ class MainWindow(BoxLayout):
         self.undo_btn.disabled = not self.can_undo()
         self.redo_btn.disabled = not self.can_redo()
 
+    def is_human_turn(self) -> bool:
+        """Returns True if the current turn belongs to the human player."""
+        board = self.chess_board.chess_board_obj
+        if board is None or board.is_game_over():
+            return False
+        return board.turn == self.human_color
+
+    def is_ai_turn(self) -> bool:
+        """Returns True if the current turn belongs to the AI engine."""
+        board = self.chess_board.chess_board_obj
+        if board is None or board.is_game_over():
+            return False
+        return board.turn == self.ai_color
+
     def update_game_status(self):
         """Checks the backend python-chess board object and updates status bar text."""
         board = self.chess_board.chess_board_obj
@@ -396,6 +464,8 @@ class MainWindow(BoxLayout):
             self.status_bar.text = f"Status: Ready | {self.ai_status}"
             return
             
+        player_side = "Playing as White" if self.human_color == chess.WHITE else "Playing as Black"
+        
         # Check game-ending states using python-chess APIs
         if board.is_game_over():
             if board.is_checkmate():
@@ -411,40 +481,39 @@ class MainWindow(BoxLayout):
                 status_text = "Draw — Fifty-Move Rule"
             else:
                 status_text = "Draw — Game Over"
-            self.status_bar.text = f"{status_text} | {self.ai_status}"
+            self.status_bar.text = f"{status_text} | {player_side} | {self.ai_status}"
             return
             
         # Check active play turn states
         if board.turn == chess.WHITE:
-            # White's turn to move (human)
+            # White's turn to move
             if board.move_stack:
-                # Black (AI) just played
-                turn_str = f"White to Move — Black Played: {board.move_stack[-1].uci()}"
+                if self.human_color == chess.WHITE:
+                    turn_str = f"White to Move — Black (AI) Played: {board.move_stack[-1].uci()}"
+                else:
+                    turn_str = f"White to Move — Black (Human) Played: {board.move_stack[-1].uci()}"
             else:
                 turn_str = "White to Move"
         else:
-            # Black's turn to move (AI)
-            turn_str = "Black to Move"
+            # Black's turn to move
+            if board.move_stack:
+                if self.human_color == chess.BLACK:
+                    turn_str = f"Black to Move — White (AI) Played: {board.move_stack[-1].uci()}"
+                else:
+                    turn_str = f"Black to Move — White (Human) Played: {board.move_stack[-1].uci()}"
+            else:
+                turn_str = "Black to Move"
             
         if board.is_check():
             status_text = f"{turn_str} — Check"
         else:
             status_text = turn_str
             
-        self.status_bar.text = f"{status_text} | {self.ai_status}"
+        self.status_bar.text = f"{status_text} | {player_side} | {self.ai_status}"
 
     def reset_game(self):
-        """Resets the game state, board positions, status outputs, and history."""
-        self.chess_board.reset_game()
-        self.clear_history()
-        self.clear_redo_stack()
-        self.update_game_status()
-
-    def is_game_over(self) -> bool:
-        """Returns True if the current chess match is completed."""
-        if self.chess_board.chess_board_obj is not None:
-            return self.chess_board.chess_board_obj.is_game_over()
-        return False
+        """Fallback method (delegates to start_new_game for clean state resets)."""
+        self.start_new_game()
 
     def _align_status_bar_text(self, instance, value):
         instance.text_size = value
