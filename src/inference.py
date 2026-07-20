@@ -28,7 +28,9 @@ class ChessInference:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
         if checkpoint_path is None:
-            self.checkpoint_path = REPO_ROOT / "models" / "best_model.pth"
+            import os
+            from Main.gui.utils.resource_path import resource_path
+            self.checkpoint_path = Path(resource_path(os.path.join("models", "best_model.pth")))
         else:
             self.checkpoint_path = Path(checkpoint_path)
             

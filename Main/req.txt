@@ -1,144 +1,121 @@
-Phase 10 – Step 4: Themes & Piece Sets
+Phase 11 – Step 1: Windows Packaging
 
 Objective
 
-Expand the application's visual customization by introducing multiple board themes and chess piece sets.
+Package the chess application into a standalone Windows executable suitable for end users.
 
-The implementation should integrate with the existing SettingsManager and settings.json.
-
-No gameplay or AI logic should be modified.
+The packaged application should run on systems without requiring Python to be installed.
 
 ────────────────────────────────────────────
 
 IMPORTANT
 
-Reuse:
-
-• SettingsManager
-
-• ChessPiece
-
-• ChessBoard
-
-• Existing rendering pipeline
-
 Do NOT modify:
 
 • ChessInference
+• Neural network
+• Gameplay
+• GUI behavior
+• ThemeManager
+• SettingsManager
 
-• MovePrediction
-
-• inference.py
-
-• chess_model.py
-
-• board_encoder.py
-
-• move_encoder.py
-
-• train.py
-
-• evaluate.py
+This phase focuses only on deployment.
 
 ────────────────────────────────────────────
 
-Board Themes
+Packaging Tool
 
-Expand the board theme system.
+Use PyInstaller.
 
-Support at least:
+Create a build configuration that includes:
 
-• Classic
+• Python application
+• Assets
+• Piece images
+• Themes
+• settings.json defaults
+• Model weights
+• Icons
 
-• Green
-
-• Blue
-
-• Brown (Wood)
-
-• Slate (Gray)
-
-Each theme should define:
-
-• Light square color
-
-• Dark square color
-
-• Selection highlight color
-
-• Legal move highlight color
-
-Store theme definitions centrally.
+Generate a single distributable application.
 
 ────────────────────────────────────────────
 
-Piece Sets
+Resources
 
-Expand piece rendering.
-
-Support:
-
-• Unicode
-
-• Image Assets (Current)
-
-Design the renderer so additional image-based piece sets can be added by simply dropping assets into a new folder and registering them in a configuration structure.
-
-Avoid hardcoded asset paths throughout the code.
-
-────────────────────────────────────────────
-
-Theme Manager
-
-Create a dedicated ThemeManager (or equivalent).
-
-Responsibilities:
-
-• Register available themes
-
-• Register available piece sets
-
-• Return colors and assets
-
-• Validate theme names
-
-MainWindow and ChessBoard should request themes through this manager.
-
-────────────────────────────────────────────
-
-Live Updates
-
-Changing either:
-
-• Board Theme
-
-• Piece Set
-
-should immediately refresh the board without restarting the application.
-
-The current game position must remain unchanged.
-
-────────────────────────────────────────────
-
-Asset Organization
-
-Organize image assets in a scalable structure.
-
-Example:
+Ensure bundled resources include:
 
 assets/
 
-    pieces/
+models/
 
-        default/
+settings.json (default)
 
-        alpha/
+icons/
 
-        merida/
+Reports are optional and should not be included unless required.
 
-    themes/
+────────────────────────────────────────────
 
-Document how future piece sets can be added.
+Resource Loading
+
+Refactor file loading (if necessary) to work in both:
+
+• Development mode
+
+• PyInstaller bundle
+
+Use a helper such as:
+
+resource_path()
+
+instead of relying on relative paths.
+
+────────────────────────────────────────────
+
+Application Icon
+
+Assign a custom application icon.
+
+Ensure it appears for:
+
+• Executable
+
+• Window
+
+• Taskbar
+
+────────────────────────────────────────────
+
+Startup
+
+Verify:
+
+✓ Settings load
+
+✓ Themes load
+
+✓ Model loads
+
+✓ Images load
+
+✓ AI functions correctly
+
+✓ Captured panels work
+
+✓ Animations work
+
+────────────────────────────────────────────
+
+Build Output
+
+Produce:
+
+dist/
+
+ChessAI.exe
+
+(or equivalent)
 
 ────────────────────────────────────────────
 
@@ -146,23 +123,19 @@ Verification
 
 Verify:
 
-✓ Every board theme renders correctly
+✓ Runs on Windows without Python installed
 
-✓ Selection highlight adapts to the active theme
+✓ No missing assets
 
-✓ Legal move highlight adapts to the active theme
+✓ No missing model
 
-✓ Unicode pieces work
+✓ Settings persist
 
-✓ Image assets work
+✓ AI works
 
-✓ Theme switching is immediate
+✓ Packaging warnings resolved
 
-✓ Current game state preserved
-
-✓ Settings persist after restart
-
-✓ Invalid theme names revert safely
+✓ Executable launches correctly
 
 ────────────────────────────────────────────
 
@@ -170,19 +143,17 @@ Output
 
 Create:
 
-phase10_step4_verification.md
+phase11_step1_verification.md
 
 Include:
 
-• Theme architecture
+• Packaging configuration
 
-• Theme definitions
+• Resource loading
 
-• Piece-set architecture
+• Included assets
 
-• Asset organization
-
-• Live refresh workflow
+• Build command
 
 • Verification checklist
 
@@ -192,12 +163,10 @@ Constraints
 
 Do NOT:
 
-• Change gameplay
+• Modify gameplay
 
 • Modify AI
 
-• Change move execution
+• Change GUI
 
-• Duplicate rendering logic
-
-Only extend the visual customization system while keeping the existing architecture clean and reusable.
+Only prepare the application for Windows distribution.

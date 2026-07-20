@@ -20,6 +20,11 @@ class SupervisedChessAIApp(App):
     
     def build(self):
         self.title = "Supervised Chess AI"
+        
+        # Load and assign custom application window/taskbar icon
+        from utils.resource_path import resource_path
+        self.icon = resource_path("Main/gui/assets/icons/chess_icon.png")
+        
         return MainWindow()
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 import sys
+import os
 from pathlib import Path
 
 class ThemeManager:
@@ -53,12 +54,12 @@ class ThemeManager:
         if piece_set_name == "Unicode" or piece_set_name not in cls.PIECE_SETS:
             return None
             
-        assets_dir = Path(__file__).resolve().parent / "assets" / "pieces" / piece_set_name
-        image_filename = f"{color}_{piece_type}.png"
-        image_path = assets_dir / image_filename
+        from utils.resource_path import resource_path
+        relative_path = os.path.join("Main", "gui", "assets", "pieces", piece_set_name, f"{color}_{piece_type}.png")
+        image_path = resource_path(relative_path)
         
-        if image_path.exists():
-            return str(image_path)
+        if os.path.exists(image_path):
+            return image_path
         return None
 
     @classmethod

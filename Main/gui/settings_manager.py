@@ -1,4 +1,6 @@
 import json
+import sys
+import os
 from pathlib import Path
 
 class SettingsManager:
@@ -27,8 +29,24 @@ class SettingsManager:
     }
 
     def __init__(self, filename="settings.json"):
-        # Resolve config storage filepath locally inside gui folder
-        self.filepath = Path(__file__).resolve().parent / filename
+        # Resolve config storage filepath depending on runtime mode
+        if getattr(sys, 'frozen', False):
+            # If running as packaged executable, store settings in the same directory as the executable
+            self.filepath = Path(sys.executable).resolve().parent / filename
+            # If the user settings file does not exist, copy the default template from the bundled directory
+            if not self.filepath.exists():
+                try:
+                    from utils.resource_path import resource_path
+                    default_path = Path(resource_path(os.path.join("Main", "gui", "settings.json")))
+                    if default_path.exists():
+                        import shutil
+                        shutil.copy(default_path, self.filepath)
+                except Exception as e:
+                    print(f"Warning: Failed to copy default settings template: {e}")
+        else:
+            # Dev mode, store locally inside the gui folder
+            self.filepath = Path(__file__).resolve().parent / filename
+
         self.settings = {}
         self.load_settings()
 

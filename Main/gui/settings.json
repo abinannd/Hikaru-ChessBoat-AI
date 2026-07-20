@@ -1,0 +1,10 @@
+{
+    "app_theme": "Dark",
+    "board_theme": "Classic",
+    "piece_display": "Unicode",
+    "animation_enabled": true,
+    "animation_speed": "Normal",
+    "ai_enabled": true,
+    "ai_thinking_delay": 250,
+    "auto_scroll_history": true
+}
