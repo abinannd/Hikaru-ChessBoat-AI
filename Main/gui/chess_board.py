@@ -12,24 +12,21 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.graphics import Color, Rectangle
 from kivy.animation import Animation
 
-# Import python-chess and our custom ChessPiece widget
+# Import python-chess, ThemeManager, and our custom ChessPiece widget
 import chess
 from chess_piece import ChessPiece
-
-# Color Theme Constants (Professional chess.com wood theme)
-LIGHT_SQUARE_COLOR = [240/255, 217/255, 181/255, 1.0]      # #F0D9B5
-DARK_SQUARE_COLOR = [181/255, 136/255, 99/255, 1.0]       # #B58863
-HIGHLIGHT_COLOR = [186/255, 202/255, 43/255, 1.0]          # #BACA2B (Soft selection green)
-LEGAL_HIGHLIGHT_COLOR = [72/255, 120/255, 209/255, 0.5]    # Semi-transparent blue overlay for legal destinations
+from theme_manager import ThemeManager
 
 class ChessSquare(BoxLayout):
     """An individual square on the chessboard."""
 
-    def __init__(self, coordinate: str, is_dark: bool, **kwargs):
+    def __init__(self, coordinate: str, is_dark: bool, theme_colors: dict, **kwargs):
         super().__init__(**kwargs)
         self.coordinate = coordinate
         self.is_dark = is_dark
-        self.square_color = DARK_SQUARE_COLOR if is_dark else LIGHT_SQUARE_COLOR
+        self.square_color = theme_colors["dark"] if is_dark else theme_colors["light"]
+        self.highlight_color = theme_colors["highlight"]
+        self.legal_highlight_color = theme_colors["legal_highlight"]
         self.is_selected = False
         self.is_legal_destination = False
         
@@ -49,7 +46,7 @@ class ChessSquare(BoxLayout):
     def select(self):
         """Visually highlights the square as selected."""
         self.is_selected = True
-        self.canvas_color.rgba = HIGHLIGHT_COLOR
+        self.canvas_color.rgba = self.highlight_color
 
     def deselect(self):
         """Restores the square's original color."""
@@ -59,7 +56,7 @@ class ChessSquare(BoxLayout):
     def show_legal_move(self):
         """Visually highlights this square as a legal destination."""
         self.is_legal_destination = True
-        self.canvas_color.rgba = LEGAL_HIGHLIGHT_COLOR
+        self.canvas_color.rgba = self.legal_highlight_color
 
     def clear_legal_move(self):
         """Restores the square's original color (removes legal highlight)."""
@@ -67,9 +64,9 @@ class ChessSquare(BoxLayout):
         self.canvas_color.rgba = self.square_color
 
 class ChessBoard(FloatLayout):
-    """Responsive 8x8 Chessboard Widget with Piece Animations."""
+    """Responsive 8x8 Chessboard Widget with ThemeManager support."""
 
-    def __init__(self, on_move_executed_callback=None, on_promotion_required_callback=None, on_move_started_callback=None, **kwargs):
+    def __init__(self, on_move_executed_callback=None, on_promotion_required_callback=None, on_move_started_callback=None, settings_manager=None, **kwargs):
         super().__init__(**kwargs)
         
         # Expose properties for piece placement, highlights, and game logic
@@ -82,11 +79,18 @@ class ChessBoard(FloatLayout):
         self.on_move_executed = on_move_executed_callback # Callback fired when a move is successfully pushed
         self.on_promotion_required = on_promotion_required_callback # Callback fired when human pawn promotion is detected
         self.on_move_started = on_move_started_callback # Callback fired when a move animation starts
+        self.settings_manager = settings_manager # Reference to centralized SettingsManager
         self.disable_interaction = False # Flag to temporarily lock board clicks (e.g., during AI turns / animations)
         self.active_animations = 0     # Counter of concurrently running animations
         
         # 8x8 Grid layout for squares
         self.board_grid = GridLayout(cols=8, rows=8, size_hint=(None, None))
+        
+        # Resolve initial theme colors from settings
+        initial_theme = "Classic"
+        if self.settings_manager:
+            initial_theme = self.settings_manager.get("board_theme")
+        theme_colors = ThemeManager.get_theme_colors(initial_theme)
         
         # Generate 64 squares from top-left (a8) to bottom-right (h1)
         files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
@@ -102,7 +106,7 @@ class ChessBoard(FloatLayout):
                 # Check square color (a1 is dark; file 0 + rank 0 = 0 (even) is dark)
                 is_dark = (file_idx + rank_idx) % 2 == 0
                 
-                square_widget = ChessSquare(coordinate=coordinate, is_dark=is_dark)
+                square_widget = ChessSquare(coordinate=coordinate, is_dark=is_dark, theme_colors=theme_colors)
                 
                 # Store references for lookup
                 self.squares[coordinate] = square_widget
@@ -142,6 +146,13 @@ class ChessBoard(FloatLayout):
             chess.KING: 'king'
         }
 
+        # Resolve piece rendering settings
+        piece_display_setting = "Unicode"
+        use_images = True
+        if self.settings_manager:
+            piece_display_setting = self.settings_manager.get("piece_display")
+            use_images = (piece_display_setting != "Unicode")
+
         # Scan all 64 squares from python-chess mapping (0 to 63)
         for square_idx in range(64):
             piece = board.piece_at(square_idx)
@@ -155,11 +166,38 @@ class ChessBoard(FloatLayout):
                     piece_type = piece_type_map[piece.piece_type]
                     color = 'w' if piece.color == chess.WHITE else 'b'
                     
-                    # Instantiate custom ChessPiece widget
-                    piece_widget = ChessPiece(piece_type=piece_type, color=color)
+                    # Instantiate custom ChessPiece widget requesting assets from ThemeManager
+                    piece_widget = ChessPiece(
+                        piece_type=piece_type, 
+                        color=color, 
+                        use_images=use_images,
+                        piece_display_setting=piece_display_setting
+                    )
                     
                     # Add to parent ChessSquare widget (automatically resizes and centers)
                     self.squares[coordinate].add_widget(piece_widget)
+
+    def apply_board_theme(self, theme_name: str):
+        """Updates all squares' colors and highlights based on ThemeManager theme definition."""
+        theme = ThemeManager.get_theme_colors(theme_name)
+        
+        for coordinate, square_widget in self.squares.items():
+            files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+            file_idx = files.index(coordinate[0])
+            rank_idx = int(coordinate[1]) - 1
+            is_dark = (file_idx + rank_idx) % 2 == 0
+            
+            square_widget.square_color = theme["dark"] if is_dark else theme["light"]
+            square_widget.highlight_color = theme["highlight"]
+            square_widget.legal_highlight_color = theme["legal_highlight"]
+            
+            # Apply color changes immediately to squares matching their highlight states
+            if square_widget.is_selected:
+                square_widget.canvas_color.rgba = square_widget.highlight_color
+            elif square_widget.is_legal_destination:
+                square_widget.canvas_color.rgba = square_widget.legal_highlight_color
+            else:
+                square_widget.canvas_color.rgba = square_widget.square_color
 
     def clear_selection_and_highlights(self):
         """Deselects the active square and clears all legal move highlights."""
@@ -244,7 +282,19 @@ class ChessBoard(FloatLayout):
         """Locates the moving piece(s) and animates them using Kivy Animation class."""
         self.disable_interaction = True
         
-        # 1. Resolve source and destination coordinates
+        # 1. Resolve animation status and durations
+        duration = 0.2
+        if self.settings_manager:
+            # Check animation bypass setting
+            if not self.settings_manager.get("animation_enabled"):
+                on_complete_callback()
+                return
+                
+            # Resolve animation speed
+            speed_map = {"Slow": 0.4, "Normal": 0.2, "Fast": 0.1}
+            duration = speed_map.get(self.settings_manager.get("animation_speed"), 0.2)
+
+        # 2. Resolve source and destination coordinates
         files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
         from_coord = f"{files[chess.square_file(move.from_square)]}{chess.square_rank(move.from_square) + 1}"
         to_coord = f"{files[chess.square_file(move.to_square)]}{chess.square_rank(move.to_square) + 1}"
@@ -256,7 +306,7 @@ class ChessBoard(FloatLayout):
             on_complete_callback()
             return
             
-        # 2. Locate the ChessPiece child widget inside the starting square layout
+        # 3. Locate the ChessPiece child widget inside the starting square layout
         piece_widget = None
         for child in start_square.children:
             if isinstance(child, ChessPiece):
@@ -267,7 +317,7 @@ class ChessBoard(FloatLayout):
             on_complete_callback()
             return
 
-        # 3. Check for castling moves (castling animates both King and Rook)
+        # 4. Check for castling moves (castling animates both King and Rook)
         is_castling = self.chess_board_obj is not None and self.chess_board_obj.is_castling(move)
         self.active_animations = 0
         
@@ -303,14 +353,14 @@ class ChessBoard(FloatLayout):
                         break
                         
             # Trigger both animations simultaneously
-            self._animate_single_piece(piece_widget, start_square, dest_square, anim_callback)
+            self._animate_single_piece(piece_widget, start_square, dest_square, duration, anim_callback)
             if rook_widget and rook_start and rook_dest:
-                self._animate_single_piece(rook_widget, rook_start, rook_dest, anim_callback)
+                self._animate_single_piece(rook_widget, rook_start, rook_dest, duration, anim_callback)
         else:
             # Normal moves (including captures and promotion translations)
-            self._animate_single_piece(piece_widget, start_square, dest_square, anim_callback)
+            self._animate_single_piece(piece_widget, start_square, dest_square, duration, anim_callback)
 
-    def _animate_single_piece(self, piece_widget, start_square, dest_square, callback):
+    def _animate_single_piece(self, piece_widget, start_square, dest_square, duration, callback):
         """Temporarily detaches the piece widget and slides it smoothly on the top FloatLayout layer."""
         self.active_animations += 1
         
@@ -329,7 +379,7 @@ class ChessBoard(FloatLayout):
         piece_widget.pos = start_pos
         
         # Animate smoothly from start to destination using Kivy Animation
-        anim = Animation(pos=dest_pos, duration=0.2, transition='in_out_quad')
+        anim = Animation(pos=dest_pos, duration=duration, transition='in_out_quad')
         anim.bind(on_complete=lambda a, w: self._cleanup_animated_piece(a, w, callback))
         anim.start(piece_widget)
 
@@ -342,6 +392,9 @@ class ChessBoard(FloatLayout):
         """Resets the backend board to standard setup and redraws the starting position."""
         new_board = chess.Board()
         self.load_position(new_board)
+        # Apply themes to new positions immediately
+        if self.settings_manager:
+            self.apply_board_theme(self.settings_manager.get("board_theme"))
 
     def on_touch_down(self, touch):
         """Intercepts touches to check for clicks. Blocks interaction if disabled or game is over."""

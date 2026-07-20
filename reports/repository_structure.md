@@ -13,11 +13,16 @@ Hikaru/
 │   ├── req.txt                        # System active requirements log
 │   └── gui/                           # Kivy GUI frontend
 │       ├── app.py                     # GUI entry point
-│       ├── main_window.py             # Root vertical window (Header, Side panel, Status, AI executor, Scrollable history, Undo/Redo, Spinner, Popup & Animation coordinator)
-│       ├── chess_board.py             # Chess board widget (8x8 squares with selection, highlights, move execution, locks, promotion intercepts & piece animations)
-│       ├── chess_piece.py             # Chess piece widget (responsive unicode/image loader)
+│       ├── settings_manager.py        # Centralized SettingsManager (validation, defaults, persistent JSON load/saves)
+│       ├── theme_manager.py           # Centralized ThemeManager (board themes registration & piece sets pathways)
+│       ├── main_window.py             # Root vertical window (Header, Side panel, Status, AI executor, Scrollable history, Undo/Redo, Spinner, Popup, Animations, Captured & Settings panel)
+│       ├── chess_board.py             # Chess board widget (8x8 squares with selection, highlights, move execution, locks, promotion intercepts, theme colors & piece animations)
+│       ├── chess_piece.py             # Chess piece widget (responsive unicode/image loader with image toggle support)
 │       ├── assets/                    # Static graphical assets
-│       │   ├── pieces/                # Chess pieces images (placeholder)
+│       │   ├── pieces/                # Chess pieces image sets directories
+│       │   │   ├── default/           # Default piece set (.gitkeep)
+│       │   │   ├── alpha/             # Alpha piece set (.gitkeep)
+│       │   │   └── merida/            # Merida piece set (.gitkeep)
 │       │   ├── boards/                # Chess board images (placeholder)
 │       │   └── icons/                 # UI icons (placeholder)
 │       ├── screens/                   # UI screen placeholders
@@ -89,6 +94,9 @@ Hikaru/
 │   ├── phase9_step3_verification.md   # AI Side selection report
 │   ├── phase9_step4_verification.md   # Human promotion dialog report
 │   ├── phase10_step1_verification.md  # Piece movement animation report
+│   ├── phase10_step2_verification.md  # Captured pieces display report
+│   ├── phase10_step3_verification.md  # Configuration settings panel report
+│   ├── phase10_step4_verification.md  # Board themes and piece sets report
 │   ├── step_4_verification_report.md  # Inference unit tests
 │   ├── step_5_verification_report.md  # Decode unit tests
 │   ├── step_6_verification_report.md  # Legal move check unit tests

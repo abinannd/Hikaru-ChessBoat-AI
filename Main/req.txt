@@ -1,12 +1,12 @@
-Phase 10 – Step 1: Smooth Move Animation
+Phase 10 – Step 4: Themes & Piece Sets
 
 Objective
 
-Introduce smooth piece movement animations for every completed move.
+Expand the application's visual customization by introducing multiple board themes and chess piece sets.
 
-The animation should enhance the user experience without changing gameplay logic or AI behavior.
+The implementation should integrate with the existing SettingsManager and settings.json.
 
-Reuse the existing rendering pipeline.
+No gameplay or AI logic should be modified.
 
 ────────────────────────────────────────────
 
@@ -14,186 +14,131 @@ IMPORTANT
 
 Reuse:
 
-• python-chess.Board()
-• ChessBoard.load_position()
+• SettingsManager
+
 • ChessPiece
-• Existing move execution
-• Existing AI integration
+
+• ChessBoard
+
+• Existing rendering pipeline
 
 Do NOT modify:
 
 • ChessInference
+
 • MovePrediction
+
 • inference.py
+
 • chess_model.py
+
 • board_encoder.py
+
 • move_encoder.py
+
 • train.py
+
 • evaluate.py
 
-Do NOT change any chess rules.
+────────────────────────────────────────────
+
+Board Themes
+
+Expand the board theme system.
+
+Support at least:
+
+• Classic
+
+• Green
+
+• Blue
+
+• Brown (Wood)
+
+• Slate (Gray)
+
+Each theme should define:
+
+• Light square color
+
+• Dark square color
+
+• Selection highlight color
+
+• Legal move highlight color
+
+Store theme definitions centrally.
 
 ────────────────────────────────────────────
 
-Animation Requirements
+Piece Sets
 
-Animate every completed move.
+Expand piece rendering.
 
-Applicable to:
+Support:
 
-✓ Human moves
+• Unicode
 
-✓ AI moves
+• Image Assets (Current)
 
-✓ Captures
+Design the renderer so additional image-based piece sets can be added by simply dropping assets into a new folder and registering them in a configuration structure.
 
-✓ Castling
-
-✓ En passant
-
-✓ Promotion
-
-The board state must remain identical before and after the animation.
+Avoid hardcoded asset paths throughout the code.
 
 ────────────────────────────────────────────
 
-Animation Style
+Theme Manager
 
-Instead of instantly redrawing the board:
+Create a dedicated ThemeManager (or equivalent).
 
-1.
+Responsibilities:
 
-Identify:
+• Register available themes
 
-Start Square
+• Register available piece sets
 
-Destination Square
+• Return colors and assets
 
-2.
+• Validate theme names
 
-Locate the moving ChessPiece widget.
-
-3.
-
-Animate its position smoothly from:
-
-Start
-
-↓
-
-Destination
-
-using Kivy's Animation class.
-
-Recommended duration:
-
-0.18–0.25 seconds
-
-Use an ease-in-out transition.
+MainWindow and ChessBoard should request themes through this manager.
 
 ────────────────────────────────────────────
 
-Captures
+Live Updates
 
-If a capture occurs:
+Changing either:
 
-Keep the captured piece visible until the animation completes.
+• Board Theme
 
-Then remove it during board refresh.
+• Piece Set
 
-Avoid pieces disappearing before contact.
+should immediately refresh the board without restarting the application.
 
-────────────────────────────────────────────
-
-Castling
-
-Animate:
-
-King
-
-Rook
-
-Sequentially or simultaneously.
-
-Both approaches are acceptable.
+The current game position must remain unchanged.
 
 ────────────────────────────────────────────
 
-Promotion
+Asset Organization
 
-Animate:
+Organize image assets in a scalable structure.
 
-Pawn
+Example:
 
-↓
+assets/
 
-Promotion Square
+    pieces/
 
-After the animation completes:
+        default/
 
-Replace the pawn with the promoted piece.
+        alpha/
 
-────────────────────────────────────────────
+        merida/
 
-Synchronization
+    themes/
 
-After animation completion:
-
-Call:
-
-load_position(board)
-
-to rebuild widgets from the backend.
-
-Never manually edit board state during animation.
-
-────────────────────────────────────────────
-
-Interaction Lock
-
-Disable interaction while an animation is running.
-
-Prevent:
-
-• Multiple clicks
-
-• AI moves during animation
-
-• Undo/Redo during animation
-
-Re-enable interaction after completion.
-
-────────────────────────────────────────────
-
-Architecture
-
-Create dedicated methods.
-
-Examples:
-
-animate_move()
-
-animate_capture()
-
-animate_castling()
-
-animation_finished()
-
-Avoid embedding animation logic inside move execution.
-
-────────────────────────────────────────────
-
-Performance
-
-Animations should remain smooth on:
-
-• Windows desktop
-
-• Mid-range laptops
-
-• Future Android devices
-
-Avoid unnecessary widget creation during the animation.
+Document how future piece sets can be added.
 
 ────────────────────────────────────────────
 
@@ -201,25 +146,23 @@ Verification
 
 Verify:
 
-✓ Human move animation
+✓ Every board theme renders correctly
 
-✓ AI move animation
+✓ Selection highlight adapts to the active theme
 
-✓ Capture animation
+✓ Legal move highlight adapts to the active theme
 
-✓ Castling animation
+✓ Unicode pieces work
 
-✓ Promotion animation
+✓ Image assets work
 
-✓ Board synchronized after animation
+✓ Theme switching is immediate
 
-✓ Undo/Redo still works
+✓ Current game state preserved
 
-✓ Move history unaffected
+✓ Settings persist after restart
 
-✓ Interaction locked during animation
-
-✓ No AI changes
+✓ Invalid theme names revert safely
 
 ────────────────────────────────────────────
 
@@ -227,17 +170,19 @@ Output
 
 Create:
 
-phase10_step1_verification.md
+phase10_step4_verification.md
 
 Include:
 
-• Animation architecture
+• Theme architecture
 
-• Synchronization workflow
+• Theme definitions
 
-• Interaction locking
+• Piece-set architecture
 
-• Performance considerations
+• Asset organization
+
+• Live refresh workflow
 
 • Verification checklist
 
@@ -247,14 +192,12 @@ Constraints
 
 Do NOT:
 
-• Change chess rules
+• Change gameplay
 
-• Change AI inference
+• Modify AI
 
-• Add sound effects
+• Change move execution
 
-• Add particle effects
+• Duplicate rendering logic
 
-• Modify game state manually
-
-Only implement smooth piece movement animations while keeping the backend synchronized through python-chess.
+Only extend the visual customization system while keeping the existing architecture clean and reusable.

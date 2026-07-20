@@ -18,7 +18,12 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.spinner import Spinner
 from kivy.uix.popup import Popup
 from kivy.uix.gridlayout import GridLayout
+from kivy.graphics import Color, Rectangle
+from kivy.clock import Clock
 from chess_board import ChessBoard
+from chess_piece import ChessPiece
+from settings_manager import SettingsManager
+from theme_manager import ThemeManager
 
 # Import python-chess
 import chess
@@ -49,6 +54,9 @@ class MainWindow(BoxLayout):
     """Root Layout for Supervised Chess AI Main Window with controls and move log tracking."""
 
     def __init__(self, **kwargs):
+        # 1. Initialize persistent SettingsManager
+        self.settings_manager = SettingsManager()
+        
         super().__init__(**kwargs)
         self.orientation = 'vertical'
         self.spacing = 10
@@ -60,12 +68,19 @@ class MainWindow(BoxLayout):
         self.move_history_list = [] # List storing all played moves in Standard Algebraic Notation (SAN)
         self.redo_stack = []        # Stack storing undone moves for redo capabilities
         self.promotion_popup = None # References the active modal promotion selection popup
+        self.settings_popup = None  # References the active settings popup dialog
         self.is_animating = False   # Flag to track active piece animation loops
         
         # Color state configuration (Human is default White)
         self.human_color = chess.WHITE
         self.ai_color = chess.BLACK
         
+        # Setup application background color
+        with self.canvas.before:
+            self.bg_color = Color(0.1, 0.1, 0.1, 1.0)
+            self.bg_rect = Rectangle(pos=self.pos, size=self.size)
+        self.bind(pos=self._update_bg, size=self._update_bg)
+
         try:
             from src.inference import ChessInference
             # Expose and initialize the single AI engine instance
@@ -76,7 +91,7 @@ class MainWindow(BoxLayout):
             self.ai_status = f"AI Error: {e}"
             print(f"Warning: AI Engine failed to initialize: {e}")
 
-        # 1. Header (Centered, Professional Title)
+        # 2. Header (Centered, Professional Title)
         header = Label(
             text="Supervised Chess AI",
             font_size='24sp',
@@ -86,7 +101,7 @@ class MainWindow(BoxLayout):
         )
         self.add_widget(header)
 
-        # 2. Middle Content Area (Chess Board + Side Panel)
+        # 3. Middle Content Area (Chess Board + Side Panel)
         content_area = BoxLayout(
             orientation='horizontal',
             spacing=15,
@@ -98,6 +113,7 @@ class MainWindow(BoxLayout):
             on_move_executed_callback=self.on_move_executed_handler, 
             on_promotion_required_callback=self.show_promotion_dialog,
             on_move_started_callback=self.on_move_started_handler,
+            settings_manager=self.settings_manager,
             size_hint_x=0.7
         )
         content_area.add_widget(self.chess_board)
@@ -118,6 +134,59 @@ class MainWindow(BoxLayout):
             size_hint_y=None,
             height=30
         ))
+        
+        # Captured Pieces Section
+        side_panel.add_widget(Label(
+            text="Captured Pieces",
+            font_size='14sp',
+            bold=True,
+            size_hint_y=None,
+            height=20
+        ))
+        
+        # White's captures container (Black pieces captured by White)
+        self.white_captured_container = BoxLayout(
+            orientation='horizontal',
+            spacing=2,
+            size_hint_y=None,
+            height=30
+        )
+        self.white_captured_label = Label(
+            text="White: ",
+            font_size='12sp',
+            bold=True,
+            size_hint_x=None,
+            width=60,
+            halign='left',
+            valign='middle'
+        )
+        self.white_captured_label.bind(size=lambda inst, val: setattr(inst, 'text_size', val))
+        self.white_captured_pieces_box = BoxLayout(orientation='horizontal', spacing=1)
+        self.white_captured_container.add_widget(self.white_captured_label)
+        self.white_captured_container.add_widget(self.white_captured_pieces_box)
+        side_panel.add_widget(self.white_captured_container)
+        
+        # Black's captures container (White pieces captured by Black)
+        self.black_captured_container = BoxLayout(
+            orientation='horizontal',
+            spacing=2,
+            size_hint_y=None,
+            height=30
+        )
+        self.black_captured_label = Label(
+            text="Black: ",
+            font_size='12sp',
+            bold=True,
+            size_hint_x=None,
+            width=60,
+            halign='left',
+            valign='middle'
+        )
+        self.black_captured_label.bind(size=lambda inst, val: setattr(inst, 'text_size', val))
+        self.black_captured_pieces_box = BoxLayout(orientation='horizontal', spacing=1)
+        self.black_captured_container.add_widget(self.black_captured_label)
+        self.black_captured_container.add_widget(self.black_captured_pieces_box)
+        side_panel.add_widget(self.black_captured_container)
         
         # Scrollable Move History panel
         side_panel.add_widget(Label(
@@ -201,11 +270,22 @@ class MainWindow(BoxLayout):
         control_row.add_widget(self.redo_btn)
         
         side_panel.add_widget(control_row)
+
+        # Settings Configuration Button
+        self.settings_btn = Button(
+            text="Settings",
+            size_hint_y=None,
+            height=45,
+            bold=True,
+            background_color=[0.4, 0.4, 0.4, 1.0] # Soft gray button
+        )
+        self.settings_btn.bind(on_press=lambda instance: self.show_settings_dialog())
+        side_panel.add_widget(self.settings_btn)
         
         content_area.add_widget(side_panel)
         self.add_widget(content_area)
 
-        # 3. Status Bar
+        # 4. Status Bar
         self.status_bar = Label(
             text="White to Move",
             font_size='14sp',
@@ -218,8 +298,13 @@ class MainWindow(BoxLayout):
         self.status_bar.bind(size=self._align_status_bar_text)
         self.add_widget(self.status_bar)
 
-        # 4. Load the starting position
+        # 5. Load settings and start
+        self.apply_app_theme(self.settings_manager.get("app_theme"))
         self.start_new_game()
+
+    def _update_bg(self, instance, value):
+        self.bg_rect.pos = self.pos
+        self.bg_rect.size = self.size
 
     def set_player_side(self):
         """Sets the player and AI colors based on the spinner's active choice."""
@@ -248,12 +333,15 @@ class MainWindow(BoxLayout):
         self.clear_history()
         self.clear_redo_stack()
         
-        # 3. Lock board click interactions if it is currently the AI's turn
+        # 3. Apply themes automatically from SettingsManager
+        self.chess_board.apply_board_theme(self.settings_manager.get("board_theme"))
+        
+        # 4. Lock board click interactions if it is currently the AI's turn
         self.chess_board.disable_interaction = not self.is_human_turn()
         self.update_game_status()
         self.update_button_states()
 
-        # 4. If AI plays first (AI is White), immediately trigger its turn
+        # 5. If AI plays first (AI is White), immediately trigger its turn
         if self.is_ai_turn():
             self.execute_ai_move()
 
@@ -291,15 +379,20 @@ class MainWindow(BoxLayout):
             
         # 6. Check if it is the AI's turn (AI is Black, human is White)
         if self.is_ai_turn():
-            self.execute_ai_move()
+            delay_ms = self.settings_manager.get("ai_thinking_delay")
+            if delay_ms > 0:
+                Clock.schedule_once(lambda dt: self.execute_ai_move(), delay_ms / 1000.0)
+            else:
+                self.execute_ai_move()
         else:
             self.update_button_states()
 
     def execute_ai_move(self):
         """Triggers the Chess AI engine to predict and play Black's move."""
-        if self.ai_engine is None:
-            print("AI Engine not loaded. Continuing in Human-vs-Human mode.")
+        if not self.settings_manager.get("ai_enabled") or self.ai_engine is None:
+            print("AI Engine not enabled or loaded. Continuing in Human-vs-Human mode.")
             self.chess_board.disable_interaction = False
+            self.is_animating = False
             self.update_button_states()
             return
 
@@ -434,7 +527,11 @@ class MainWindow(BoxLayout):
             return
             
         if self.is_ai_turn():
-            self.execute_ai_move()
+            delay_ms = self.settings_manager.get("ai_thinking_delay")
+            if delay_ms > 0:
+                Clock.schedule_once(lambda dt: self.execute_ai_move(), delay_ms / 1000.0)
+            else:
+                self.execute_ai_move()
         else:
             self.update_button_states()
 
@@ -474,8 +571,10 @@ class MainWindow(BoxLayout):
                 log_lines.append(f"{move_num:2d}.  {white_move:<8}")
                 
         self.history_scroll.label.text = "\n".join(log_lines)
-        # Scroll automatically to the bottom
-        self.history_scroll.scroll_y = 0.0
+        
+        # Scroll automatically to the bottom if auto-scroll setting is enabled
+        if self.settings_manager.get("auto_scroll_history"):
+            self.history_scroll.scroll_y = 0.0
 
     def undo_move(self):
         """Undoes the latest move(s) and refreshes the GUI."""
@@ -489,7 +588,7 @@ class MainWindow(BoxLayout):
         # Lock visual interaction check
         self.chess_board.clear_selection_and_highlights()
         
-        if self.ai_engine is not None:
+        if self.settings_manager.get("ai_enabled") and self.ai_engine is not None:
             # Human vs AI: pop 2 moves (AI response, then human move)
             m2 = board.pop() # AI move
             m1 = board.pop() # Human move
@@ -500,7 +599,7 @@ class MainWindow(BoxLayout):
                 self.move_history_list.pop()
                 self.move_history_list.pop()
         else:
-            # Human vs Human: pop 1 move
+            # Human vs Human (or AI disabled): pop 1 move
             m1 = board.pop()
             self.redo_stack.append(m1)
             if self.move_history_list:
@@ -525,7 +624,7 @@ class MainWindow(BoxLayout):
             
         self.chess_board.clear_selection_and_highlights()
         
-        if self.ai_engine is not None:
+        if self.settings_manager.get("ai_enabled") and self.ai_engine is not None:
             # Human vs AI: pop 2 moves (Human move first, then AI move)
             m1 = self.redo_stack.pop() # Human move
             m2 = self.redo_stack.pop() # AI move
@@ -562,7 +661,7 @@ class MainWindow(BoxLayout):
         if board is None:
             return False
             
-        if self.ai_engine is not None:
+        if self.settings_manager.get("ai_enabled") and self.ai_engine is not None:
             return len(board.move_stack) >= 2
         else:
             return len(board.move_stack) >= 1
@@ -571,7 +670,7 @@ class MainWindow(BoxLayout):
         """Returns True if the redo stack contains moves that can be reapplied."""
         if self.is_animating:
             return False
-        if self.ai_engine is not None:
+        if self.settings_manager.get("ai_enabled") and self.ai_engine is not None:
             return len(self.redo_stack) >= 2
         else:
             return len(self.redo_stack) >= 1
@@ -588,10 +687,12 @@ class MainWindow(BoxLayout):
             self.undo_btn.disabled = True
             self.redo_btn.disabled = True
             self.new_game_btn.disabled = True
+            self.settings_btn.disabled = True
         else:
             self.undo_btn.disabled = not self.can_undo()
             self.redo_btn.disabled = not self.can_redo()
             self.new_game_btn.disabled = False
+            self.settings_btn.disabled = False
 
     def is_human_turn(self) -> bool:
         """Returns True if the current turn belongs to the human player."""
@@ -602,10 +703,242 @@ class MainWindow(BoxLayout):
 
     def is_ai_turn(self) -> bool:
         """Returns True if the current turn belongs to the AI engine."""
+        if not self.settings_manager.get("ai_enabled") or self.ai_engine is None:
+            return False
         board = self.chess_board.chess_board_obj
         if board is None or board.is_game_over():
             return False
         return board.turn == self.ai_color
+
+    def calculate_captured_pieces(self):
+        """Calculates captured pieces for both sides by comparing current board to starting counts."""
+        board = self.chess_board.chess_board_obj
+        if board is None:
+            return {}
+            
+        # Standard starting pieces counts
+        starting = {
+            chess.WHITE: {chess.PAWN: 8, chess.KNIGHT: 2, chess.BISHOP: 2, chess.ROOK: 2, chess.QUEEN: 1},
+            chess.BLACK: {chess.PAWN: 8, chess.KNIGHT: 2, chess.BISHOP: 2, chess.ROOK: 2, chess.QUEEN: 1}
+        }
+        
+        # Count remaining pieces on the board
+        remaining = {
+            chess.WHITE: {chess.PAWN: 0, chess.KNIGHT: 0, chess.BISHOP: 0, chess.ROOK: 0, chess.QUEEN: 0},
+            chess.BLACK: {chess.PAWN: 0, chess.KNIGHT: 0, chess.BISHOP: 0, chess.ROOK: 0, chess.QUEEN: 0}
+        }
+        
+        for square in chess.SQUARES:
+            piece = board.piece_at(square)
+            if piece is not None and piece.piece_type != chess.KING:
+                remaining[piece.color][piece.piece_type] += 1
+                
+        # Calculate captured pieces counts (derived directly from current state)
+        captured = {
+            chess.WHITE: {}, # White pieces captured (by Black)
+            chess.BLACK: {}  # Black pieces captured (by White)
+        }
+        
+        for color in [chess.WHITE, chess.BLACK]:
+            for pt in [chess.QUEEN, chess.ROOK, chess.BISHOP, chess.KNIGHT, chess.PAWN]:
+                count = starting[color][pt] - remaining[color][pt]
+                if count > 0:
+                    captured[color][pt] = count
+                    
+        return captured
+
+    def calculate_material_balance(self) -> int:
+        """Calculates the current material balance from White's perspective."""
+        board = self.chess_board.chess_board_obj
+        if board is None:
+            return 0
+            
+        values = {
+            chess.PAWN: 1,
+            chess.KNIGHT: 3,
+            chess.BISHOP: 3,
+            chess.ROOK: 5,
+            chess.QUEEN: 9
+        }
+        
+        white_total = 0
+        black_total = 0
+        
+        for square in chess.SQUARES:
+            piece = board.piece_at(square)
+            if piece is not None:
+                val = values.get(piece.piece_type, 0)
+                if piece.color == chess.WHITE:
+                    white_total += val
+                else:
+                    black_total += val
+                    
+        return white_total - black_total
+
+    def refresh_captured_pieces(self):
+        """Re-calculates captured pieces and material balance from current board, then redraws GUI panels."""
+        # 1. Clear old captured piece widgets
+        self.white_captured_pieces_box.clear_widgets()
+        self.black_captured_pieces_box.clear_widgets()
+        
+        # 2. Compute captured counts directly from current board state
+        captured = self.calculate_captured_pieces()
+        
+        # Mapping from piece type ints to string names
+        piece_type_map = {
+            chess.QUEEN: 'queen',
+            chess.ROOK: 'rook',
+            chess.BISHOP: 'bishop',
+            chess.KNIGHT: 'knight',
+            chess.PAWN: 'pawn'
+        }
+        
+        # Resolve piece rendering display format from settings
+        piece_display_setting = "Unicode"
+        use_images = True
+        if self.settings_manager:
+            piece_display_setting = self.settings_manager.get("piece_display")
+            use_images = (piece_display_setting != "Unicode")
+        
+        # 3. Add Black pieces captured by White (White's captures panel)
+        black_captured_dict = captured.get(chess.BLACK, {})
+        for pt in [chess.QUEEN, chess.ROOK, chess.BISHOP, chess.KNIGHT, chess.PAWN]:
+            count = black_captured_dict.get(pt, 0)
+            for _ in range(count):
+                piece_widget = ChessPiece(
+                    piece_type=piece_type_map[pt], 
+                    color='b', 
+                    use_images=use_images, 
+                    piece_display_setting=piece_display_setting,
+                    size_hint=(None, 1), 
+                    width=18
+                )
+                self.white_captured_pieces_box.add_widget(piece_widget)
+                
+        # 4. Add White pieces captured by Black (Black's captures panel)
+        white_captured_dict = captured.get(chess.WHITE, {})
+        for pt in [chess.QUEEN, chess.ROOK, chess.BISHOP, chess.KNIGHT, chess.PAWN]:
+            count = white_captured_dict.get(pt, 0)
+            for _ in range(count):
+                piece_widget = ChessPiece(
+                    piece_type=piece_type_map[pt], 
+                    color='w', 
+                    use_images=use_images, 
+                    piece_display_setting=piece_display_setting,
+                    size_hint=(None, 1), 
+                    width=18
+                )
+                self.black_captured_pieces_box.add_widget(piece_widget)
+                
+        # 5. Update material balance indicators
+        balance = self.calculate_material_balance()
+        if balance > 0:
+            self.white_captured_label.text = f"White: +{balance}"
+            self.black_captured_label.text = "Black: "
+        elif balance < 0:
+            self.white_captured_label.text = "White: "
+            self.black_captured_label.text = f"Black: +{abs(balance)}"
+        else:
+            self.white_captured_label.text = "White: "
+            self.black_captured_label.text = "Black: "
+
+    def show_settings_dialog(self):
+        """Displays a modal popup dialog containing all settings categories."""
+        content = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        grid = GridLayout(cols=2, spacing=10, size_hint_y=0.8)
+        
+        def add_setting_spinner(label_text, key, values, display_map=None):
+            grid.add_widget(Label(text=label_text, halign='left', size_hint_x=0.6))
+            
+            current_val = self.settings_manager.get(key)
+            if display_map:
+                text_val = [k for k, v in display_map.items() if v == current_val][0]
+            else:
+                text_val = str(current_val)
+                
+            spinner = Spinner(
+                text=text_val,
+                values=list(display_map.keys()) if display_map else [str(v) for v in values],
+                size_hint_x=0.4
+            )
+            
+            def on_choice(spinner_inst, choice_text):
+                if display_map:
+                    new_val = display_map[choice_text]
+                else:
+                    default_type = type(self.settings_manager.DEFAULT_SETTINGS[key])
+                    new_val = default_type(choice_text)
+                    
+                self.settings_manager.set(key, new_val)
+                self.apply_setting(key, new_val)
+                
+            spinner.bind(text=on_choice)
+            grid.add_widget(spinner)
+
+        # Map display labels to backend config values
+        on_off_map = {"On": True, "Off": False}
+        delay_map = {"0 ms": 0, "250 ms": 250, "500 ms": 500, "1000 ms": 1000}
+        
+        add_setting_spinner("App Theme:", "app_theme", ["Dark", "Light"])
+        add_setting_spinner("Board Theme:", "board_theme", ThemeManager.get_available_themes())
+        add_setting_spinner("Piece Display:", "piece_display", ThemeManager.get_available_piece_sets())
+        add_setting_spinner("Animation:", "animation_enabled", [True, False], on_off_map)
+        add_setting_spinner("Animation Speed:", "animation_speed", ["Slow", "Normal", "Fast"])
+        add_setting_spinner("AI Enabled:", "ai_enabled", [True, False], on_off_map)
+        add_setting_spinner("AI Thinking Delay:", "ai_thinking_delay", [0, 250, 500, 1000], delay_map)
+        add_setting_spinner("Auto-scroll History:", "auto_scroll_history", [True, False], on_off_map)
+        
+        content.add_widget(grid)
+        
+        # Close button
+        close_btn = Button(text="Close", size_hint_y=0.2, bold=True)
+        self.settings_popup = Popup(
+            title="Settings Configuration",
+            content=content,
+            size_hint=(None, None),
+            size=(400, 420)
+        )
+        close_btn.bind(on_release=self.settings_popup.dismiss)
+        content.add_widget(close_btn)
+        
+        self.settings_popup.open()
+
+    def apply_setting(self, key, value):
+        """Immediately applies setting updates to the visual and logical pipelines."""
+        if key == "app_theme":
+            self.apply_app_theme(value)
+        elif key == "board_theme":
+            self.chess_board.apply_board_theme(value)
+        elif key == "piece_display":
+            # Re-draw layout pieces to apply Image vs Unicode asset changes
+            board = self.chess_board.chess_board_obj
+            if board is not None:
+                self.chess_board.load_position(board)
+            # Re-draw captured piece widgets matching chosen display
+            self.refresh_captured_pieces()
+        elif key == "ai_enabled":
+            # Update board interaction and button locks
+            self.chess_board.disable_interaction = not self.is_human_turn()
+            self.update_button_states()
+            if self.is_ai_turn():
+                self.execute_ai_move()
+
+    def apply_app_theme(self, theme_name: str):
+        """Recursively updates Kivy widgets colors matching Dark/Light application theme."""
+        bg_rgb = [0.1, 0.1, 0.1, 1.0] if theme_name == "Dark" else [0.95, 0.95, 0.95, 1.0]
+        text_color = [1.0, 1.0, 1.0, 1.0] if theme_name == "Dark" else [0.1, 0.1, 0.1, 1.0]
+        
+        # Update main window background color
+        self.bg_color.rgba = bg_rgb
+        
+        # Recursive widget style updater
+        def update_widget(w):
+            if isinstance(w, Label):
+                w.color = text_color
+            for child in w.children:
+                update_widget(child)
+                
+        update_widget(self)
 
     def update_game_status(self):
         """Checks the backend python-chess board object and updates status bar text."""
@@ -632,6 +965,7 @@ class MainWindow(BoxLayout):
             else:
                 status_text = "Draw — Game Over"
             self.status_bar.text = f"{status_text} | {player_side} | {self.ai_status}"
+            self.refresh_captured_pieces()
             return
             
         # Check active play turn states
@@ -660,10 +994,7 @@ class MainWindow(BoxLayout):
             status_text = turn_str
             
         self.status_bar.text = f"{status_text} | {player_side} | {self.ai_status}"
-
-    def reset_game(self):
-        """Fallback method (delegates to start_new_game for clean state resets)."""
-        self.start_new_game()
+        self.refresh_captured_pieces()
 
     def _align_status_bar_text(self, instance, value):
         instance.text_size = value

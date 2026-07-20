@@ -28,21 +28,20 @@ UNICODE_PIECES = {
 class ChessPiece(BoxLayout):
     """Widget representing a chess piece (Presentation layer only)."""
 
-    def __init__(self, piece_type: str, color: str, **kwargs):
+    def __init__(self, piece_type: str, color: str, use_images: bool = True, piece_display_setting: str = "Unicode", **kwargs):
         super().__init__(**kwargs)
         self.piece_type = piece_type  # 'pawn', 'knight', 'bishop', 'rook', 'queen', 'king'
         self.color = color            # 'w' (White) or 'b' (Black)
         self.orientation = 'vertical'
         self.padding = 2
 
-        # Check if corresponding transparent PNG/SVG file exists in assets folder
-        assets_dir = Path(__file__).resolve().parent / "assets" / "pieces"
-        image_filename = f"{self.color}_{self.piece_type}.png"
-        image_path = assets_dir / image_filename
+        # Use ThemeManager to resolve custom asset pathways
+        from theme_manager import ThemeManager
+        image_path = ThemeManager.get_piece_set_path(piece_display_setting, self.color, self.piece_type)
 
-        if image_path.exists():
-            # Load and display standard image asset
-            self.piece_img = Image(source=str(image_path), allow_stretch=True, keep_ratio=True)
+        if use_images and image_path is not None:
+            # Load and display standard image asset from verified directory
+            self.piece_img = Image(source=image_path, allow_stretch=True, keep_ratio=True)
             self.add_widget(self.piece_img)
         else:
             # Fallback to high-quality unicode character rendering
