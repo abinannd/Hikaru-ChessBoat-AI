@@ -1,172 +1,31 @@
-Phase 11 – Step 1: Windows Packaging
-
-Objective
-
-Package the chess application into a standalone Windows executable suitable for end users.
-
-The packaged application should run on systems without requiring Python to be installed.
-
-────────────────────────────────────────────
-
-IMPORTANT
-
-Do NOT modify:
-
-• ChessInference
-• Neural network
-• Gameplay
-• GUI behavior
-• ThemeManager
-• SettingsManager
-
-This phase focuses only on deployment.
-
-────────────────────────────────────────────
-
-Packaging Tool
-
-Use PyInstaller.
-
-Create a build configuration that includes:
-
-• Python application
-• Assets
-• Piece images
-• Themes
-• settings.json defaults
-• Model weights
-• Icons
-
-Generate a single distributable application.
-
-────────────────────────────────────────────
-
-Resources
-
-Ensure bundled resources include:
-
-assets/
-
-models/
-
-settings.json (default)
-
-icons/
-
-Reports are optional and should not be included unless required.
-
-────────────────────────────────────────────
-
-Resource Loading
-
-Refactor file loading (if necessary) to work in both:
-
-• Development mode
-
-• PyInstaller bundle
-
-Use a helper such as:
-
-resource_path()
-
-instead of relying on relative paths.
-
-────────────────────────────────────────────
-
-Application Icon
-
-Assign a custom application icon.
-
-Ensure it appears for:
-
-• Executable
-
-• Window
-
-• Taskbar
-
-────────────────────────────────────────────
-
-Startup
-
-Verify:
-
-✓ Settings load
-
-✓ Themes load
-
-✓ Model loads
-
-✓ Images load
-
-✓ AI functions correctly
-
-✓ Captured panels work
-
-✓ Animations work
-
-────────────────────────────────────────────
-
-Build Output
-
-Produce:
-
-dist/
-
-ChessAI.exe
-
-(or equivalent)
-
-────────────────────────────────────────────
-
-Verification
-
-Verify:
-
-✓ Runs on Windows without Python installed
-
-✓ No missing assets
-
-✓ No missing model
-
-✓ Settings persist
-
-✓ AI works
-
-✓ Packaging warnings resolved
-
-✓ Executable launches correctly
-
-────────────────────────────────────────────
-
-Output
-
-Create:
-
-phase11_step1_verification.md
-
-Include:
-
-• Packaging configuration
-
-• Resource loading
-
-• Included assets
-
-• Build command
-
-• Verification checklist
-
-────────────────────────────────────────────
-
-Constraints
-
-Do NOT:
-
-• Modify gameplay
-
-• Modify AI
-
-• Change GUI
-
-Only prepare the application for Windows distribution.
+In main_window.py, the MainWindow class is missing an is_game_over method, which is called in on_move_executed_handler and finish_promotion_execution, causing AttributeError: 'MainWindow' object has no attribute 'is_game_over'.
+
+Please add the following method to the MainWindow class, placed between the existing set_player_side method and the start_new_game method (as its own method at the same indentation level as other methods in the class — do NOT place it inside __init__ or any other method):
+
+python
+def is_game_over(self):
+    """Checks if the current game has ended (checkmate, stalemate, draw, etc)."""
+    board = self.chess_board.chess_board_obj
+    if board is None:
+        return False
+
+    if board.is_game_over():
+        if board.is_checkmate():
+            winner = "Black" if board.turn == chess.WHITE else "White"
+            self.status_bar.text = f"Checkmate! {winner} wins."
+        elif board.is_stalemate():
+            self.status_bar.text = "Draw by stalemate."
+        elif board.is_insufficient_material():
+            self.status_bar.text = "Draw by insufficient material."
+        else:
+            self.status_bar.text = "Game Over — Draw."
+        self.chess_board.disable_interaction = True
+        return True
+
+    return False
+
+After adding it, verify:
+
+It's indented correctly as a class method (4 spaces before def, 8 spaces for the body) — not nested inside __init__ or any other method.
+is_ai_turn and is_human_turn also exist somewhere in the class (they're called right alongside is_game_over in on_move_executed_handler and start_new_game) — if either is also missing, flag it so I can address it separately.
+The file has no syntax/indentation errors after the edit — run a quick python -m py_compile main_window.py (or equivalent) to confirm.

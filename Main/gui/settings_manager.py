@@ -57,6 +57,7 @@ class SettingsManager:
             self.save_settings()
             return
             
+        repaired = False
         try:
             with open(self.filepath, 'r') as f:
                 data = json.load(f)
@@ -69,9 +70,19 @@ class SettingsManager:
                 else:
                     print(f"Warning: Invalid value for key '{key}': {val}. Reverting to default.")
                     self.settings[key] = default_val
+                    repaired = True
+            
+            # If there are any extraneous keys or missing keys in data, trigger repair to sync
+            if not isinstance(data, dict) or len(data) != len(self.settings) or any(k not in data for k in self.settings):
+                repaired = True
         except Exception as e:
             print(f"Error loading settings file: {e}. Reverting to defaults.")
             self.settings = self.DEFAULT_SETTINGS.copy()
+            repaired = True
+            
+        # Re-save if any repair occurred to clean up the file on disk
+        if repaired:
+            self.save_settings()
             
     def save_settings(self):
         """Persists settings immediately to JSON file."""

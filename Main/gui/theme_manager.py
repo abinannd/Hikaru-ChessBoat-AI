@@ -54,12 +54,27 @@ class ThemeManager:
         if piece_set_name == "Unicode" or piece_set_name not in cls.PIECE_SETS:
             return None
             
-        from utils.resource_path import resource_path
-        relative_path = os.path.join("Main", "gui", "assets", "pieces", piece_set_name, f"{color}_{piece_type}.png")
-        image_path = resource_path(relative_path)
+        filename = f"{color}_{piece_type}.png"
         
-        if os.path.exists(image_path):
-            return image_path
+        # 1. Check local execution folder next to the executable (or repository root in dev)
+        if getattr(sys, 'frozen', False):
+            # Packaged mode: check next to ChessAI.exe
+            local_dir = Path(sys.executable).resolve().parent / "assets" / "pieces" / piece_set_name
+        else:
+            # Dev mode: check next to repository root
+            local_dir = Path(__file__).resolve().parents[1] / "gui" / "assets" / "pieces" / piece_set_name
+            
+        local_path = local_dir / filename
+        if local_path.exists():
+            return str(local_path)
+            
+        # 2. Check PyInstaller bundled folder (_MEIPASS)
+        from utils.resource_path import resource_path
+        relative_path = os.path.join("Main", "gui", "assets", "pieces", piece_set_name, filename)
+        bundle_path = resource_path(relative_path)
+        if os.path.exists(bundle_path):
+            return bundle_path
+            
         return None
 
     @classmethod

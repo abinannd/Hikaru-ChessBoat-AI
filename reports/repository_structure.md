@@ -102,6 +102,7 @@ Hikaru/
 │   ├── phase10_step3_verification.md  # Configuration settings panel report
 │   ├── phase10_step4_verification.md  # Board themes and piece sets report
 │   ├── phase11_step1_verification.md  # Standalone Windows packaging report
+│   ├── post_packaging_bugfix_verification.md # Packaged executable bugfix report
 │   ├── step_4_verification_report.md  # Inference unit tests
 │   ├── step_5_verification_report.md  # Decode unit tests
 │   ├── step_6_verification_report.md  # Legal move check unit tests

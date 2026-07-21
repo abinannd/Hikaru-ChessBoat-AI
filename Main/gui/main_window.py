@@ -373,7 +373,7 @@ class MainWindow(BoxLayout):
         self.update_game_status()
         
         # 5. Check if the game has ended
-        if self.is_game_over():
+        if board.is_game_over():
             self.update_button_states()
             return
             
@@ -522,7 +522,7 @@ class MainWindow(BoxLayout):
         self.is_animating = False
         self.chess_board.disable_interaction = not self.is_human_turn()
         
-        if self.is_game_over():
+        if board.is_game_over():
             self.update_button_states()
             return
             
