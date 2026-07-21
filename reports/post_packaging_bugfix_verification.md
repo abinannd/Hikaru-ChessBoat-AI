@@ -1,35 +1,45 @@
 # Post-Packaging Bugfix Verification Report
 
-This report documents the diagnosis, fixes, and regression testing results for runtime issues discovered in the standalone Windows packaged version.
+This report documents the diagnosis, fixes, and regression testing results for runtime issues resolved in the standalone Windows packaged version.
 
 ---
 
 ## 🐛 Bug Diagnoses & Fixes
 
-### BUG 1 — Crash After First Move
-- **Root Cause**: The Kivy animation callback triggered `on_move_executed_handler()` which checked `self.chess_board.is_game_over()`. Later, `finish_promotion_execution()` checked `self.is_game_over()`. Neither `ChessBoard` (Kivy widget) nor `MainWindow` (GUI layout) defines `is_game_over()`. The method `is_game_over()` belongs strictly to python-chess's `Board` object (`self.chess_board.chess_board_obj`). Calling it incorrectly produced `AttributeError` crashes.
-- **Files Modified**: [Main/gui/main_window.py](file:///c:/BRAIN-STORM/chess-game-app/Hikaru/Main/gui/main_window.py)
-- **Exact Fix Applied**: Replaced invalid references with `board.is_game_over()` (referencing the local python-chess Board object) inside `on_move_executed_handler()` and `finish_promotion_execution()`.
-
-### BUG 2 — Piece Images Not Displaying
-- **Root Cause**: Git tracks directory files but skips empty folders (only containing `.gitkeep` placeholders). No transparent `.png` files for piece sets (`default`, `alpha`, `merida`) existed in the repository. In addition, when packaged, lookups were routed solely to the bundled temp directory `_MEIPASS`, ignoring local piece set updates dropped next to the executable.
-- **Files Modified**: [Main/gui/theme_manager.py](file:///c:/BRAIN-STORM/chess-game-app/Hikaru/Main/gui/theme_manager.py)
+### BUG 1 — AI Cannot Initialize (Critical)
+- **Root Cause**: The import statement `from src.inference import ChessInference` was inside a delayed `try...except` block in `main_window.py`. PyInstaller's static analyzer did not follow this conditional import chain, causing the entire `src` package to be omitted from the bundled executable. This produced a `ModuleNotFoundError: No module named 'src'` exception at runtime, forcing the AI status to remain offline.
+- **Files Modified**: [ChessAI.spec](file:///c:/BRAIN-STORM/chess-game-app/Hikaru/ChessAI.spec), [Main/gui/main_window.py](file:///c:/BRAIN-STORM/chess-game-app/Hikaru/Main/gui/main_window.py)
 - **Exact Fix Applied**: 
-  - Restructured `get_piece_set_path()` to check the local execution directory next to the executable first (enabling users to drop custom piece set folders dynamically next to `ChessAI.exe`).
-  - Set up fallback to look inside PyInstaller's `sys._MEIPASS` folder.
-  - Returns `None` if no images are found, allowing `ChessPiece` to fall back to clean scaled unicode characters safely.
+  - Added `('src', 'src')` to `datas` inside the PyInstaller `.spec` configuration to copy raw python files of the `src` package into the bundled `_MEIPASS/src/` folder.
+  - Added `'src'`, `'src.inference'`, `'src.chess_model'`, `'src.board_encoder'`, and `'src.move_encoder'` to the `hiddenimports` list inside `ChessAI.spec`.
+  - Rebuilt the application directly from the modified `.spec` file.
+  - Integrated Kivy's `Logger` into `main_window.py` to write initialization success or failure logs directly to Kivy's central log files.
 
-### BUG 3 — Resource Packaging Audit
-- **Root Cause**: Direct relative pathways (like `../../models/best_model.pth`) evaluate incorrectly when executing from a packaged bundle.
+### BUG 2 — AI Never Makes a Move (Critical)
+- **Root Cause**: Direct consequence of BUG 1. Because the `src` package was missing and could not be loaded, `self.ai_engine` was `None`. This caused `execute_ai_move()` to return early and default to Human-vs-Human mode, allowing the human player to control both White and Black pieces.
+- **Exact Fix Applied**: Fixed by correcting the packaging of `src` (BUG 1). Once the model weights and inference modules successfully initialized, turn switches automatically scheduled and executed AI moves when it was the AI's turn.
+
+### BUG 3 — Runtime Crash After First Move (MainWindow has no attribute is_game_over)
+- **Root Cause**: Checking game status triggered calls to `self.is_game_over()` on `MainWindow`, which was not defined, causing an `AttributeError`.
+- **Files Modified**: [Main/gui/main_window.py](file:///c:/BRAIN-STORM/chess-game-app/Hikaru/Main/gui/main_window.py)
+- **Exact Fix Applied**: Implemented the `is_game_over(self)` method in the `MainWindow` class at the same indentation level as other class methods (between `set_player_side` and `start_new_game`). The method checks the python-chess `Board` object, displays draw or checkmate results on the status bar, and disables board interaction upon game completion.
+
+### BUG 4 — Piece Images Missing
+- **Root Cause**: Empty folders were ignored by Git, and lookups were routed solely to the bundled temp directory `_MEIPASS`, ignoring local piece set updates dropped next to the executable.
+- **Files Modified**: [Main/gui/theme_manager.py](file:///c:/BRAIN-STORM/chess-game-app/Hikaru/Main/gui/theme_manager.py)
+- **Exact Fix Applied**: Restructured `get_piece_set_path()` to scan the local execution folder next to the executable first, then PyInstaller's `sys._MEIPASS` folder, and cleanly fall back to high-quality unicode character rendering if the assets are missing.
+
+### BUG 5 — Resource Packaging Audit
+- **Root Cause**: Direct relative paths (e.g. `../../models/best_model.pth`) fail when executing from a packaged PyInstaller bundle.
 - **Files Modified**: [src/inference.py](file:///c:/BRAIN-STORM/chess-game-app/Hikaru/src/inference.py), [Main/gui/theme_manager.py](file:///c:/BRAIN-STORM/chess-game-app/Hikaru/Main/gui/theme_manager.py)
 - **Exact Fix Applied**: Routed all file reading tasks (board pieces, settings JSON, neural weights) through the `resource_path` utility.
 
-### BUG 4 — Settings File
-- **Root Cause**: If `settings.json` is corrupted, has missing keys, or uses incorrect types, the previous loader recovered defaults in memory but did not save them back to disk, causing repeating validation warnings on every startup.
+### BUG 6 — Settings
+- **Root Cause**: Corrupted JSON or invalid values in `settings.json` didn't write clean templates back to disk, causing repeating warnings.
 - **Files Modified**: [Main/gui/settings_manager.py](file:///c:/BRAIN-STORM/chess-game-app/Hikaru/Main/gui/settings_manager.py)
 - **Exact Fix Applied**: Programmed a self-healing write-back cycle in `load_settings()`. If any type discrepancies, key corruption, or parser exception triggers, it automatically overwrites the file with clean defaults to repair settings on disk immediately.
 
-### BUG 5 — Animation Lifecycle
+### BUG 7 — Animation Lifecycle
 - **Root Cause**: Deferrals during Kivy layout transitions must synchronize with turn-based board locking.
 - **Exact Fix Applied**: Audited the callback sequencing:
   1. Move clicked $\to$ lock board interaction $\to$ animate slide.
@@ -37,9 +47,10 @@ This report documents the diagnosis, fixes, and regression testing results for r
   3. Redraw squares $\to$ update status labels $\to$ check checks/mates.
   4. Unlock interaction if human turn, or schedule AI inference if AI turn.
 
-### BUG 6 — Theme Switching
-- **Root Cause**: Switching styles during active matches must not lose visual board highlights.
-- **Exact Fix Applied**: Integrated dynamic canvas updates inside `apply_board_theme()`. Re-rendering squares redraws backgrounds, highlights, and legal markers in the new HSL styles without changing python-chess stacks.
+### BUG 8 — GUI AI Status Label Out of Sync
+- **Root Cause**: The status label text was created only once during `__init__` and did not reflect changes when AI loaded or failed.
+- **Files Modified**: [Main/gui/main_window.py](file:///c:/BRAIN-STORM/chess-game-app/Hikaru/Main/gui/main_window.py)
+- **Exact Fix Applied**: Refactored `MainWindow` to store a reference to `self.ai_status_lbl` and created a `set_ai_status(self, status_str)` helper method to update the label widget text dynamically.
 
 ---
 

@@ -1,31 +1,358 @@
-In main_window.py, the MainWindow class is missing an is_game_over method, which is called in on_move_executed_handler and finish_promotion_execution, causing AttributeError: 'MainWindow' object has no attribute 'is_game_over'.
 
-Please add the following method to the MainWindow class, placed between the existing set_player_side method and the start_new_game method (as its own method at the same indentation level as other methods in the class — do NOT place it inside __init__ or any other method):
+ # 🚨 Post-Packaging Runtime Investigation & Stabilization
 
-python
-def is_game_over(self):
-    """Checks if the current game has ended (checkmate, stalemate, draw, etc)."""
-    board = self.chess_board.chess_board_obj
-    if board is None:
-        return False
+The Windows executable launches successfully, but multiple critical runtime issues remain. Diagnose the root causes, implement proper fixes (not workarounds), verify functionality, and document all changes.
 
-    if board.is_game_over():
-        if board.is_checkmate():
-            winner = "Black" if board.turn == chess.WHITE else "White"
-            self.status_bar.text = f"Checkmate! {winner} wins."
-        elif board.is_stalemate():
-            self.status_bar.text = "Draw by stalemate."
-        elif board.is_insufficient_material():
-            self.status_bar.text = "Draw by insufficient material."
-        else:
-            self.status_bar.text = "Game Over — Draw."
-        self.chess_board.disable_interaction = True
-        return True
+Do NOT modify:
+- Neural network
+- Training pipeline
+- Evaluation pipeline
+- Board encoder
+- Move encoder
 
-    return False
+Only investigate GUI, packaging, runtime integration, resource loading, AI integration, and application architecture.
 
-After adding it, verify:
+==================================================
+CRITICAL BUG 1 — AI Cannot Initialize
+==================================================
 
-It's indented correctly as a class method (4 spaces before def, 8 spaces for the body) — not nested inside __init__ or any other method.
-is_ai_turn and is_human_turn also exist somewhere in the class (they're called right alongside is_game_over in on_move_executed_handler and start_new_game) — if either is also missing, flag it so I can address it separately.
-The file has no syntax/indentation errors after the edit — run a quick python -m py_compile main_window.py (or equivalent) to confirm.
+Observed from the packaged executable:
+
+AI Status:
+AI Error: No module named 'src'
+
+Because of this:
+
+- AI never initializes.
+- AI never responds.
+- Human can move both White and Black pieces.
+- The game effectively behaves as Human vs Human.
+
+Investigate:
+
+• Search the entire project for:
+
+    import src
+    from src import ...
+    from src.xxx import ...
+
+• Determine why these imports succeed during development but fail after packaging.
+
+• Replace project-root dependent imports with package-safe imports.
+
+• Ensure imports work both:
+    - from source
+    - from PyInstaller executable
+
+• Verify hidden imports if required.
+
+• Verify PyInstaller spec file includes everything needed.
+
+• Confirm ChessInference initializes successfully.
+
+• AI Status should report READY rather than import errors.
+
+==================================================
+CRITICAL BUG 2 — AI Never Makes a Move
+==================================================
+
+Current behaviour:
+
+✓ Human move accepted.
+✓ Turn changes.
+✗ AI never thinks.
+✗ AI never moves.
+
+Investigate the complete move pipeline:
+
+Human move
+
+↓
+
+Animation
+
+↓
+
+Animation completion callback
+
+↓
+
+Board update
+
+↓
+
+Turn update
+
+↓
+
+Game-over check
+
+↓
+
+AI scheduling
+
+↓
+
+ChessInference.predict_best_move()
+
+↓
+
+AI animation
+
+↓
+
+Turn returned to player
+
+Verify:
+
+• AI callback is executed.
+
+• AI scheduling isn't skipped.
+
+• AI isn't blocked by interaction locks.
+
+• AI side selection works.
+
+• AI starts automatically whenever it becomes the AI's turn.
+
+==================================================
+BUG 3 — Runtime Crash After First Move
+==================================================
+
+Observed traceback:
+
+AttributeError:
+
+'MainWindow' object has no attribute 'is_game_over'
+
+Occurs during:
+
+Animation
+
+↓
+
+_cleanup_animated_piece()
+
+↓
+
+anim_callback()
+
+↓
+
+on_move_executed_handler()
+
+Investigate:
+
+• Locate the correct owner of is_game_over().
+
+• Remove stale callback references.
+
+• Ensure MainWindow only delegates to the proper game logic.
+
+Do NOT duplicate game-over logic.
+
+==================================================
+BUG 4 — Piece Images Missing
+==================================================
+
+Observed:
+
+Board renders.
+
+Squares render.
+
+Pieces appear as placeholders instead of expected artwork.
+
+Investigate:
+
+• ThemeManager
+
+• resource_path()
+
+• Asset lookup
+
+• PNG loading
+
+• Unicode fallback
+
+Verify:
+
+default
+
+alpha
+
+merida
+
+Unicode mode
+
+All load correctly.
+
+==================================================
+BUG 5 — Resource Packaging
+==================================================
+
+Audit every packaged resource.
+
+Verify:
+
+✓ best_model.pth
+
+✓ icons
+
+✓ themes
+
+✓ settings
+
+✓ piece assets
+
+✓ fonts
+
+✓ configuration
+
+Search entire project for remaining hardcoded relative paths.
+
+Everything should use resource_path().
+
+==================================================
+BUG 6 — Settings
+==================================================
+
+Verify:
+
+First launch
+
+Restart
+
+Deleting settings.json
+
+Corrupted JSON
+
+Invalid values
+
+Invalid data types
+
+All recover correctly.
+
+==================================================
+BUG 7 — Animation Lifecycle
+==================================================
+
+Verify order:
+
+Animation starts
+
+↓
+
+Interaction lock
+
+↓
+
+Animation ends
+
+↓
+
+Board refresh
+
+↓
+
+Callbacks
+
+↓
+
+Game-over detection
+
+↓
+
+AI scheduling
+
+↓
+
+Interaction unlock
+
+Ensure no stale callbacks remain.
+
+==================================================
+BUG 8 — Regression Testing
+==================================================
+
+Verify:
+
+✓ Human vs Human
+
+✓ Human vs AI
+
+✓ AI White
+
+✓ AI Black
+
+✓ Move History
+
+✓ Undo
+
+✓ Redo
+
+✓ Promotion
+
+✓ Castling
+
+✓ En Passant
+
+✓ Captured Pieces
+
+✓ Material Balance
+
+✓ Themes
+
+✓ Settings
+
+✓ Animations
+
+✓ Multiple complete games
+
+==================================================
+Deliverables
+==================================================
+
+1.
+
+Fix every discovered issue.
+
+2.
+
+Create:
+
+post_packaging_bugfix_verification.md
+
+Include:
+
+• Root cause of every bug
+
+• Files modified
+
+• Import fixes
+
+• Packaging fixes
+
+• AI initialization verification
+
+• Regression testing
+
+• Remaining known issues
+
+3.
+
+Commit only after:
+
+✓ AI initializes successfully.
+
+✓ AI responds automatically.
+
+✓ No runtime crashes.
+
+✓ Piece assets load correctly.
+
+✓ Multiple complete Human vs AI games finish successfully.
+
+Commit message:
+
+"Fix packaging imports, AI initialization, runtime callbacks, and desktop stability"

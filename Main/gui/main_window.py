@@ -85,11 +85,13 @@ class MainWindow(BoxLayout):
             from src.inference import ChessInference
             # Expose and initialize the single AI engine instance
             self.ai_engine = ChessInference()
-            self.ai_status = "AI Ready"
-            print("AI Engine successfully loaded and initialized (AI Ready).")
+            self.set_ai_status("AI Ready")
+            from kivy.logger import Logger
+            Logger.info("SupervisedChessAI: AI Engine successfully loaded and initialized (AI Ready).")
         except Exception as e:
-            self.ai_status = f"AI Error: {e}"
-            print(f"Warning: AI Engine failed to initialize: {e}")
+            self.set_ai_status(f"AI Error: {e}")
+            from kivy.logger import Logger
+            Logger.error(f"SupervisedChessAI: AI Engine failed to initialize: {e}")
 
         # 2. Header (Centered, Professional Title)
         header = Label(
@@ -200,7 +202,7 @@ class MainWindow(BoxLayout):
         side_panel.add_widget(self.history_scroll)
         
         # Display AI status
-        side_panel.add_widget(Label(
+        self.ai_status_lbl = Label(
             text=f"AI Status:\n{self.ai_status}",
             font_size='14sp',
             halign='center',
@@ -208,7 +210,8 @@ class MainWindow(BoxLayout):
             bold=True,
             size_hint_y=None,
             height=40
-        ))
+        )
+        side_panel.add_widget(self.ai_status_lbl)
         
         side_panel.add_widget(Label(
             text="AI Stats:\nModel: ChessMoveCNN\nValidation Loss: 4.0642\nTest Accuracy: 18.41%",
@@ -336,6 +339,12 @@ class MainWindow(BoxLayout):
 
         return False
 
+    def set_ai_status(self, status_str):
+        """Sets the AI status string and dynamically updates the visual status label."""
+        self.ai_status = status_str
+        if hasattr(self, 'ai_status_lbl'):
+            self.ai_status_lbl.text = f"AI Status:\n{self.ai_status}"
+
     def start_new_game(self):
         """Begins a fresh chess match respecting side selection configuration."""
         if self.is_animating:
@@ -439,7 +448,7 @@ class MainWindow(BoxLayout):
             else:
                 err_msg = f"AI predicted illegal/None move: {prediction.uci if prediction else 'None'}"
                 print(f"Error: {err_msg}")
-                self.ai_status = "AI Error: Illegal move"
+                self.set_ai_status("AI Error: Illegal move")
                 self.is_animating = False
                 self.chess_board.disable_interaction = not self.is_human_turn()
                 self.update_game_status()
@@ -447,7 +456,7 @@ class MainWindow(BoxLayout):
         except Exception as e:
             err_msg = f"AI inference error: {e}"
             print(f"Error: {err_msg}")
-            self.ai_status = f"AI Error: Prediction failed"
+            self.set_ai_status(f"AI Error: Prediction failed")
             self.is_animating = False
             self.chess_board.disable_interaction = not self.is_human_turn()
             self.update_game_status()
