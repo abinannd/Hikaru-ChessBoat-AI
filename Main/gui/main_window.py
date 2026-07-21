@@ -315,6 +315,27 @@ class MainWindow(BoxLayout):
             self.human_color = chess.BLACK
             self.ai_color = chess.WHITE
 
+    def is_game_over(self):
+        """Checks if the current game has ended (checkmate, stalemate, draw, etc)."""
+        board = self.chess_board.chess_board_obj
+        if board is None:
+            return False
+
+        if board.is_game_over():
+            if board.is_checkmate():
+                winner = "Black" if board.turn == chess.WHITE else "White"
+                self.status_bar.text = f"Checkmate! {winner} wins."
+            elif board.is_stalemate():
+                self.status_bar.text = "Draw by stalemate."
+            elif board.is_insufficient_material():
+                self.status_bar.text = "Draw by insufficient material."
+            else:
+                self.status_bar.text = "Game Over — Draw."
+            self.chess_board.disable_interaction = True
+            return True
+
+        return False
+
     def start_new_game(self):
         """Begins a fresh chess match respecting side selection configuration."""
         if self.is_animating:
@@ -373,7 +394,7 @@ class MainWindow(BoxLayout):
         self.update_game_status()
         
         # 5. Check if the game has ended
-        if board.is_game_over():
+        if self.is_game_over():
             self.update_button_states()
             return
             
@@ -522,7 +543,7 @@ class MainWindow(BoxLayout):
         self.is_animating = False
         self.chess_board.disable_interaction = not self.is_human_turn()
         
-        if board.is_game_over():
+        if self.is_game_over():
             self.update_button_states()
             return
             
