@@ -5,6 +5,20 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
 from kivy.uix.label import Label
 
+import os
+from kivy.core.text import LabelBase
+
+# Register Segoe UI Symbol system font for chess characters on Windows
+HAS_SEGOE_UI_SYMBOL = False
+if sys.platform == "win32":
+    font_path = r"C:\Windows\Fonts\seguisym.ttf"
+    if os.path.exists(font_path):
+        try:
+            LabelBase.register(name="Segoe UI Symbol", fn_regular=font_path)
+            HAS_SEGOE_UI_SYMBOL = True
+        except Exception as e:
+            print(f"Warning: Failed to register Segoe UI Symbol: {e}")
+
 # Unicode fallbacks for chess pieces
 UNICODE_PIECES = {
     'w': {
@@ -47,8 +61,10 @@ class ChessPiece(BoxLayout):
             # Fallback to high-quality unicode character rendering
             symbol = UNICODE_PIECES[self.color][self.piece_type]
             label_color = [1.0, 0.95, 0.9, 1.0] if self.color == 'w' else [0.15, 0.15, 0.15, 1.0]
+            font_name = "Segoe UI Symbol" if HAS_SEGOE_UI_SYMBOL else None
             self.piece_lbl = Label(
                 text=symbol,
+                font_name=font_name,
                 color=label_color,
                 bold=True,
                 halign='center',
